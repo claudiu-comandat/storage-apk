@@ -170,79 +170,39 @@ async function sendPrintAwbRequest(payload) {
     }
 }
 
-async function sendGenerateAwbRequest(payload) {
-    // Payload așteptat: { internalId: "...", marketplace: "..." }
-    if (!payload || !payload.internalId) {
-        showToast("Date lipsă pentru generare AWB.", true);
-        return null;
+const OPENSALES_API_KEY = 'ops_MBg2GT6hJ04Q-on_xSTH17DayzOmJ9Oh';
+
+async function fetchAwbAndConvert(internalId) {
+    const url = `https://opensalesapi-production-4572.up.railway.app/orders/${internalId}/awb-outgoing/get-or-issue`;
+    const headers = { 'Authorization': `Bearer ${OPENSALES_API_KEY}` };
+    let arrayBuffer;
+
+    if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+        const { CapacitorHttp } = window.Capacitor.Plugins;
+        try {
+            const res = await CapacitorHttp.post({ url, headers, responseType: 'arraybuffer' });
+            const data = res.data;
+            if (typeof data === 'string') {
+                const bin = window.atob(data);
+                const bytes = new Uint8Array(bin.length);
+                for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+                arrayBuffer = bytes.buffer;
+            } else {
+                arrayBuffer = data;
+            }
+        } catch (e) {
+            const res = await fetch(url, { method: 'POST', headers });
+            if (!res.ok) throw new Error(`Eroare AWB: ${res.status}`);
+            arrayBuffer = await res.arrayBuffer();
+        }
+    } else {
+        const res = await fetch(url, { method: 'POST', headers });
+        if (!res.ok) throw new Error(`Eroare AWB: ${res.status}`);
+        arrayBuffer = await res.arrayBuffer();
     }
 
-    showLoading(true);
-    try {
-        const response = await fetch(window.GENERATE_AWB_WEBHOOK, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) {
-            throw new Error(`Eroare server: ${response.status}`);
-        }
-
-        // Răspuns așteptat: { "success": true, "data": { "url": "https://...", "id": [...] } }
-        const result = await response.json();
-
-        if (result.success && result.data?.url) {
-            showToast(`AWB generat pentru ${payload.internalId}. Se pregătește printarea...`);
-            return result.data.url; // Returnăm URL-ul PDF-ului pentru printare locală
-        } else {
-            throw new Error(result.message || 'Răspuns invalid de la server.');
-        }
-    } catch (error) {
-        console.error("Eroare generare AWB:", error);
-        showToast("Eroare la generarea AWB: " + error.message, true);
-        return null;
-    } finally {
-        showLoading(false);
-    }
+    return window.renderPdfToZpl(arrayBuffer);
 }
-
-async function sendInvoiceRequest(payload) {
-    if (!payload || !payload.internal_order_id) {
-        showToast("Date lipsă pentru facturare.", true);
-        return false;
-    }
-
-    showLoading(true);
-    try {
-        const response = await fetch(window.INVOICE_WEBHOOK_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-
-        const data = await response.json();
-
-        // Verificăm dacă EasySales a răspuns cu success: true
-        if (data.success === true) {
-            showToast("Factură generată cu succes!");
-            return true;
-        } else {
-            console.error("Eroare EasySales Invoice:", data);
-            throw new Error(data.msg || data.message || "Eroare necunoscută la facturare.");
-        }
-
-    } catch (error) {
-        console.error("Eroare facturare:", error);
-        showToast(`Eroare facturare: ${error.message}`, true);
-        return false;
-    } finally {
-        showLoading(false);
-    }
-}
-
 
 // ExpuN funcțiile necesare global
 window.loadInitialStorage = loadInitialStorage;
@@ -250,7 +210,6 @@ window.fetchAndSetupOrders = fetchAndSetupOrders;
 window.sendStorageUpdate = sendStorageUpdate;
 window.fetchProductDetailsBatch = fetchProductDetailsBatch;
 window.getProductDetails = getProductDetails;
+window.OPENSALES_API_KEY = OPENSALES_API_KEY;
 window.sendPrintAwbRequest = sendPrintAwbRequest;
-window.sendGenerateAwbRequest = sendGenerateAwbRequest;
-window.sendInvoiceRequest = sendInvoiceRequest;
-window.INVOICE_WEBHOOK_URL = "https://automatizare.comandat.ro/webhook/invoice-easysales";
+window.fetchAwbAndConvert = fetchAwbAndConvert;

@@ -71,9 +71,6 @@ async function startPickingProcess() {
     currentRouteIndex = 0; // Indexul comenzii curente
     currentStopIndex = 0;  // Indexul produsului curent din comandă
 
-    // Pre-descărcăm AWB-urile comenzilor valide în fundal (pentru printare rapidă)
-    preloadAwbsForRoutes(result.validRoutes);
-
     if (pickingRoutes.length > 0) {
         await renderCurrentPickingStop();
     } else {
@@ -151,8 +148,7 @@ async function createOrderBasedPickingList(orders) {
             validRoutes.push({
                 orderData: order,
                 stops: orderStops,
-                isProblematic: false,
-                _cachedZpl: null // Slot pentru ZPL pre-descărcat
+                isProblematic: false
             });
             virtualInventory = tempInventory; // Commit la stoc
         } else {
@@ -226,35 +222,6 @@ async function createOrderBasedPickingList(orders) {
 
     return { validRoutes, problematicRoutes };
 }
-
-// ============================================================================
-// PRE-DESCĂRCARE AWB (Async, în fundal, pentru comenzi valide cu awb_url)
-// ============================================================================
-
-async function preloadAwbsForRoutes(routes) {
-    const validWithAwb = routes.filter(r => !r.isProblematic && r.orderData?.awb_url?.length > 5);
-    if (validWithAwb.length === 0) return;
-
-    console.log(`[Preload] Se pre-descarcă ${validWithAwb.length} AWB-uri în fundal...`);
-
-    // Pre-descărcăm în paralel fără să blocăm UI-ul
-    const downloads = validWithAwb.map(async route => {
-        try {
-            const zpl = await window.downloadAndConvertAwb(route.orderData.awb_url);
-            route._cachedZpl = zpl;
-            console.log(`[Preload] AWB pre-descărcat pentru comanda ${route.orderData.internal_id || route.orderData.order_id}`);
-        } catch (e) {
-            console.warn(`[Preload] Eșec pre-descărcare AWB pentru comanda ${route.orderData.order_id}:`, e.message);
-            route._cachedZpl = null; // Va fi descărcat la nevoie în handleOrderComplete
-        }
-    });
-
-    // Nu așteptăm finalizarea – se întâmplă în fundal
-    Promise.allSettled(downloads).then(() => {
-        console.log('[Preload] Pre-descărcare AWB-uri finalizată.');
-    });
-}
-
 
 // --- Randare UI ---
 
@@ -472,68 +439,25 @@ function showItemSuccessOverlay() {
 }
 
 async function handleOrderComplete(orderRoute) {
-    const orderData = orderRoute.orderData;
-    const internalId = orderData.internal_id || "N/A";
-    const awbUrl = orderData.awb_url;
-    const marketplace = orderData.marketplace || "Unknown";
+    const internalId = orderRoute.orderData.internal_id || "N/A";
 
     showToast(`Finalizare comandă ${internalId}...`, false);
 
-    // 1. Printare AWB local prin Bluetooth (Primul pas, prioritar)
     try {
-        let zplString = null;
-
-        if (awbUrl && awbUrl.length > 5) {
-            // ── Ramura A: AWB deja existent
-            if (orderRoute._cachedZpl) {
-                console.log('[Print] Folosim ZPL pre-descărcat din cache.');
-                zplString = orderRoute._cachedZpl;
-            } else {
-                showToast("Descarc AWB-ul...", false);
-                zplString = await window.downloadAndConvertAwb(awbUrl);
-            }
-        } else {
-            // ── Ramura B: AWB inexistent → Generare + Descărcare + Printare
-            showToast("Generez AWB...", false);
-            const generatedUrl = await window.sendGenerateAwbRequest({
-                internalId: internalId,
-                marketplace: marketplace
-            });
-
-            if (!generatedUrl) {
-                showToast("Eroare: nu s-a putut genera AWB-ul.", true);
-                return false;
-            }
-
-            showToast("AWB generat. Descarc și printez...", false);
-            zplString = await window.downloadAndConvertAwb(generatedUrl);
-        }
-
+        showToast("Generez și descarc AWB...", false);
+        const zplString = await window.fetchAwbAndConvert(internalId);
         showToast("Trimit la imprimantă Zebra...", false);
         await window.NativePrinter.print(zplString);
         showToast("✅ AWB printat cu succes!", false);
-
     } catch (e) {
-        console.error('[Print] Eroare printare AWB:', e);
         showToast("Eroare la printare AWB: " + e.message, true);
         return false;
     }
 
-    // 2. Emitere Factură (În background, fără a aștepta sau a bloca UI-ul)
-    fetch(window.INVOICE_WEBHOOK_URL, {
+    fetch(`https://opensalesapi-production-4572.up.railway.app/orders/${internalId}/invoice/emit`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ internal_order_id: internalId })
-    })
-    .then(async res => {
-        const data = await res.json();
-        if (data.success === true) {
-            console.log(`[Factura BG] Factură generată cu succes pt comanda ${internalId}.`);
-        } else {
-            console.error(`[Factura BG] Eroare generare:`, data);
-        }
-    })
-    .catch(e => console.error('[Factura BG] Eroare rețea factura:', e));
+        headers: { 'Authorization': `Bearer ${window.OPENSALES_API_KEY}` }
+    }).catch(e => console.error('[Factura BG] Eroare rețea factura:', e));
 
     await showSuccessTimer();
     return true;
