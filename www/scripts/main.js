@@ -27,6 +27,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Setează starea inițială a footer-ului
     setupPickingPageFooter(false);
+
+    // Verifică dacă există o versiune nouă de APK publicată pe GitHub
+    window.checkForAppUpdate();
 });
 
 // --- Logică Settings / Test Print ---

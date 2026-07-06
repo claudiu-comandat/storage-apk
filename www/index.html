@@ -490,6 +490,14 @@
         <span id="floating-order-count">0</span>
     </div>
 
+    <div id="update-banner" class="hidden fixed bottom-0 inset-x-0 z-[70] p-4">
+        <div class="max-w-md mx-auto bg-green-600 text-white rounded-2xl shadow-lg p-4 flex items-center justify-between gap-3">
+            <span id="update-banner-text" class="text-sm font-semibold">Actualizare disponibilă</span>
+            <button id="update-banner-btn" onclick="installPendingUpdate()"
+                class="bg-white text-green-700 font-bold px-4 py-2 rounded-xl text-sm shrink-0">Instalează</button>
+        </div>
+    </div>
+
     <div id="notification-footer" class="max-w-md mx-auto">
         <div onclick="showPage('page-picking')"
             class="relative bg-primary rounded-2xl shadow-lg shadow-primary/30 dark:shadow-glow-primary overflow-hidden animate-slide-in cursor-pointer"
@@ -624,10 +632,12 @@
         </div>
     </div>
 
+    <script type="module" src="scripts/version.js"></script>
     <script type="module" src="scripts/state.js"></script>
     <script type="module" src="scripts/utils.js"></script>
     <script type="module" src="scripts/logger.js"></script>
     <script type="module" src="scripts/api.js"></script>
+    <script type="module" src="scripts/updater.js"></script>
     <script type="module" src="scripts/scanner.js"></script>
     <script type="module" src="scripts/flow-search.js"></script>
     <script type="module" src="scripts/flow-add.js"></script>
