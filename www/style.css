@@ -1,0 +1,586 @@
+.material-icons-outlined {
+    font-size: inherit;
+}
+
+.animate-slide-in {
+    animation: slide-in 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+@keyframes slide-in {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+html, body {
+    height: 100%;
+    overflow: hidden;
+}
+
+body {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+}
+
+#app-container {
+    flex-grow: 1;
+    overflow-y: auto;
+    position: relative; /* Necesar pentru 'click outside' */
+}
+
+.page {
+    display: none;
+}
+.page.active {
+    display: block;
+}
+
+#page-picking.active {
+    display: flex;
+}
+
+/* Modal Scaner QR */
+#scanner-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    z-index: 50;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+#reader {
+    width: 90%;
+    max-width: 400px;
+    background: #161D26;
+    border-radius: 1rem;
+    overflow: hidden;
+    border: 2px solid #007AFF;
+}
+#scanner-modal.active {
+    display: flex;
+}
+
+/* Notificare Toast */
+#toast {
+    position: fixed;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 20px;
+    background-color: #007AFF;
+    color: white;
+    border-radius: 1rem;
+    z-index: 100;
+    opacity: 0;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    visibility: hidden;
+}
+#toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    visibility: visible;
+}
+
+/* Spinner încărcare */
+.spinner {
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top: 4px solid #007AFF;
+    width: 30px;
+    height: 30px;
+    animation: spin 1s linear infinite;
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+#loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 99;
+    display: none;
+}
+
+/* Bară de căutare animată (mărită) */
+#search-container {
+    /* position: relative; */ /* ȘTERS */
+    width: 100%;
+    height: 64px; /* Mărit */
+}
+#search-form {
+    /* position: absolute; */ /* ȘTERS */
+    /* top: 0; */ /* ȘTERS */
+    /* left: 0; */ /* ȘTERS */
+    width: 100%;
+    height: 64px; /* Mărit */
+    background: #fff;
+    dark:bg-card-dark;
+    border-radius: 1rem;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    /* padding: 8px; */ /* ȘTERS - înlocuit mai jos */
+    border: 2px solid transparent;
+    padding-left: 1.25rem; /* NOU */
+    padding-right: 1.25rem; /* NOU */
+}
+
+#search-input {
+    width: 100%;
+    height: 100%;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 1.2rem; /* Mărit */
+    /* padding-left: 50px; */ /* ȘTERS */
+    padding-left: 0.75rem; /* NOU */
+    padding-right: 10px;
+    color: #111827;
+    dark:color-text-dark;
+}
+#search-icon {
+    /* position: absolute; */ /* ȘTERS */
+    /* left: 18px; */ /* ȘTERS */
+    /* top: 50%; */ /* ȘTERS */
+    /* transform: translateY(-50%); */ /* ȘTERS */
+    font-size: 28px; /* Mărit */
+    color: #6B7280;
+    dark:color-subtext-dark;
+    transition: color 0.3s ease;
+    flex-shrink: 0; /* NOU */
+}
+
+/* Bulă notificare comenzi */
+#floating-order-bubble {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 40;
+    width: 60px;
+    height: 60px;
+    background-color: #007AFF;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 122, 255, 0.4);
+    cursor: pointer;
+    transform: scale(0);
+    transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+#floating-order-bubble.visible {
+    transform: scale(1);
+}
+#floating-order-bubble .material-icons-outlined {
+    color: white;
+    font-size: 28px;
+}
+#floating-order-count {
+    position: absolute;
+    top: -5px;
+    left: -5px;
+    background-color: #E53E3E;
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid white;
+}
+
+/* Buton fixat jos (pentru picking) */
+#picking-footer {
+    display: none; /* Ascuns implicit */
+    position: fixed;
+    bottom: 0;
+    left: 50%; /* MODIFICAT: Centrat */
+    transform: translateX(-50%); /* MODIFICAT: Centrat */
+    width: 100%;
+    max-width: 28rem; /* MODIFICAT: Adăugat max-width (448px) */
+    padding: 1.5rem;
+    background: linear-gradient(to top, rgba(243, 244, 246, 1), rgba(243, 244, 246, 0));
+    dark:background: linear-gradient(to top, rgba(11, 17, 23, 1), rgba(11, 17, 23, 0));
+    z-index: 30;
+}
+.dark #picking-footer {
+    background: linear-gradient(to top, rgba(11, 17, 23, 1) 50%, rgba(11, 17, 23, 0));
+}
+.light #picking-footer {
+    background: linear-gradient(to top, rgba(243, 244, 246, 1) 50%, rgba(243, 244, 246, 0));
+}
+
+/* Footer fixat jos (pentru notificare dashboard) */
+#notification-footer {
+    display: none; /* Ascuns implicit */
+    position: fixed;
+    bottom: 0;
+    left: 50%; /* MODIFICAT: Centrat */
+    transform: translateX(-50%); /* MODIFICAT: Centrat */
+    width: 100%;
+    max-width: 28rem; /* MODIFICAT: Adăugat max-width (448px) */
+    padding: 0 1.5rem 1.5rem 1.5rem; /* Doar padding-ul cardului, fără cel de sus */
+    background: linear-gradient(to top, rgba(243, 244, 246, 1), rgba(243, 244, 246, 0));
+    dark:background: linear-gradient(to top, rgba(11, 17, 23, 1), rgba(11, 17, 23, 0));
+    z-index: 30;
+}
+.dark #notification-footer {
+    background: linear-gradient(to top, rgba(11, 17, 23, 1) 50%, rgba(11, 17, 23, 0));
+}
+.light #notification-footer {
+    background: linear-gradient(to top, rgba(243, 244, 246, 1) 50%, rgba(243, 244, 246, 0));
+}
+
+/* Stil pentru listele de produse scanate */
+.product-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem;
+    background-color: #f3f4f6; /* background-light */
+    border-radius: 0.75rem;
+}
+.dark .product-list-item {
+    background-color: #161D26; /* card-dark */
+}
+
+/* ============================================================ */
+/* PROCESARE RETUR — Stiluri                                     */
+/* ============================================================ */
+
+.retur-card {
+    background: #ffffff;
+    border-radius: 1.25rem;
+    padding: 1.5rem;
+    border: 1px solid #e5e7eb;
+    margin-bottom: 1rem;
+    animation: slide-in 0.3s ease forwards;
+}
+.dark .retur-card {
+    background: #162032;
+    border-color: #1f2937;
+}
+
+.retur-card--notfound {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.75rem;
+    padding: 2.5rem 1.5rem;
+}
+.dark .retur-card--notfound p { color: #9ca3af; }
+
+.retur-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #f3f4f6;
+}
+.dark .retur-card-header { border-color: #1f2937; }
+
+.retur-card-header--rma .material-icons-outlined { color: #f97316; }
+.retur-card-header--order .material-icons-outlined { color: #3b82f6; }
+.retur-card-header--trendyol .material-icons-outlined { color: #f27a1a; }
+
+.retur-card-header h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    flex: 1;
+}
+.dark .retur-card-header h3 { color: #f1f5f9; }
+
+.retur-badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: #fff7ed;
+    color: #f97316;
+    border: 1px solid #fed7aa;
+    border-radius: 2rem;
+    padding: 0.2rem 0.6rem;
+    white-space: nowrap;
+}
+.dark .retur-badge { background: rgba(249,115,22,0.15); border-color: rgba(249,115,22,0.3); }
+
+.retur-badge--order { background: #eff6ff; color: #3b82f6; border-color: #bfdbfe; }
+.dark .retur-badge--order { background: rgba(59,130,246,0.15); border-color: rgba(59,130,246,0.3); }
+.retur-badge--trendyol { background: #fff7ed; color: #f27a1a; border-color: #fed7aa; }
+.dark .retur-badge--trendyol { background: rgba(242,122,26,0.15); border-color: rgba(242,122,26,0.3); }
+
+.retur-info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.retur-info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+.retur-info-item label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #6b7280;
+}
+.retur-info-item span {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #111827;
+}
+.dark .retur-info-item span { color: #e5e7eb; }
+
+.retur-existing-values {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: #92400e;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 0.75rem;
+    padding: 0.6rem 0.9rem;
+    margin-bottom: 1rem;
+}
+.dark .retur-existing-values {
+    background: rgba(245,158,11,0.1);
+    border-color: rgba(245,158,11,0.25);
+    color: #fcd34d;
+}
+
+.retur-form { margin-bottom: 1rem; }
+
+.retur-form-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-bottom: 0.85rem;
+}
+.retur-form-row label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #374151;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+.dark .retur-form-row label { color: #9ca3af; }
+
+.retur-required {
+    color: #ef4444;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.retur-input {
+    width: 100%;
+    padding: 0.65rem 1rem;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.75rem;
+    font-size: 1rem;
+    color: #111827;
+    outline: none;
+    transition: border-color 0.2s;
+}
+.retur-input:focus { border-color: #f97316; }
+.dark .retur-input {
+    background: #0b1120;
+    border-color: #374151;
+    color: #f1f5f9;
+}
+
+.retur-textarea {
+    width: 100%;
+    padding: 0.65rem 1rem;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.75rem;
+    font-size: 0.95rem;
+    color: #111827;
+    outline: none;
+    resize: vertical;
+    font-family: inherit;
+    transition: border-color 0.2s;
+}
+.retur-textarea:focus { border-color: #f97316; }
+.dark .retur-textarea {
+    background: #0b1120;
+    border-color: #374151;
+    color: #f1f5f9;
+}
+
+.retur-total-display {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #059669;
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    border-radius: 0.75rem;
+    padding: 0.5rem 0.9rem;
+    margin-bottom: 0.85rem;
+    text-align: center;
+}
+.dark .retur-total-display {
+    background: rgba(5,150,105,0.1);
+    border-color: rgba(5,150,105,0.3);
+    color: #34d399;
+}
+
+.retur-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.retur-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    font-weight: 700;
+    font-size: 0.95rem;
+    padding: 0.8rem 1rem;
+    border-radius: 0.875rem;
+    transition: all 0.2s;
+    cursor: pointer;
+    border: none;
+}
+.retur-btn:active { transform: scale(0.97); }
+
+.retur-btn--finalizat {
+    background: #059669;
+    color: white;
+    box-shadow: 0 4px 12px rgba(5,150,105,0.3);
+}
+.retur-btn--finalizat:hover { background: #047857; }
+
+.retur-btn--refuzat {
+    background: #dc2626;
+    color: white;
+    box-shadow: 0 4px 12px rgba(220,38,38,0.3);
+}
+.retur-btn--refuzat:hover { background: #b91c1c; }
+
+.retur-btn--neridicat {
+    grid-column: 1 / -1;
+    background: #7c3aed;
+    color: white;
+    box-shadow: 0 4px 12px rgba(124,58,237,0.3);
+    font-size: 1rem;
+    padding: 1rem;
+}
+.retur-btn--neridicat:hover { background: #6d28d9; }
+
+.retur-btn--scan {
+    background: #f97316;
+    color: white;
+    box-shadow: 0 4px 12px rgba(249,115,22,0.3);
+    padding: 0.75rem 1.25rem;
+    border-radius: 0.875rem;
+}
+.retur-btn--scan:hover { background: #ea6c00; }
+
+.retur-products { margin-bottom: 1rem; }
+.retur-products label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #6b7280;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.retur-product-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+.retur-product-list li {
+    font-size: 0.9rem;
+    padding: 0.5rem 0.75rem;
+    background: #f3f4f6;
+    border-radius: 0.6rem;
+    color: #111827;
+}
+.dark .retur-product-list li {
+    background: #0b1120;
+    color: #e5e7eb;
+}
+
+.retur-info-item--full { grid-column: 1 / -1; }
+
+.retur-reject-form {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #f3f4f6;
+}
+.dark .retur-reject-form { border-color: #1f2937; }
+
+.retur-photo-upload {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: #f3f4f6;
+    border: 2px dashed #d1d5db;
+    border-radius: 0.75rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: #6b7280;
+    transition: all 0.2s;
+}
+.retur-photo-upload:hover { border-color: #f27a1a; color: #f27a1a; }
+.dark .retur-photo-upload { background: #0b1120; border-color: #374151; color: #9ca3af; }
+
+.retur-photo-preview {
+    width: 100%;
+    max-height: 200px;
+    object-fit: contain;
+    border-radius: 0.75rem;
+    margin-top: 0.5rem;
+    border: 1px solid #e5e7eb;
+}
+.dark .retur-photo-preview { border-color: #374151; }
+
+.retur-mono {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85em;
+}
+.retur-sku {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85em;
+    font-weight: 700;
+    color: #3b82f6;
+}
+

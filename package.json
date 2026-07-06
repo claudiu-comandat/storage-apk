@@ -1,0 +1,21 @@
+{
+  "name": "storage-apk",
+  "version": "1.0.0",
+  "description": "Manager Stocuri - Android APK via Capacitor",
+  "private": true,
+  "scripts": {
+    "sync": "cap sync",
+    "add:android": "cap add android",
+    "open:android": "cap open android",
+    "build:android": "cd android && ./gradlew assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/core": "^6.2.0",
+    "cordova-plugin-bluetooth-serial": "git+https://github.com/brandomcombr/BluetoothSerial.git",
+    "@capacitor-community/bluetooth-le": "^3.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.0"
+  }
+}

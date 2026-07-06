@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html class="dark" lang="ro">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no"
+        name="viewport" />
+    <title>Manager Stocuri</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        // Culori Vechi (păstrate pentru compatibilitate)
+                        primary: "#3B82F6", // Actualizat la noul albastru
+                        "primary-dark": "#2563EB", // NOU
+                        "background-light": "#F9FAFB",
+                        "card-light": "#FFFFFF",
+                        "text-light": "#111827",
+                        "text-dark": "#E5E7EB",
+                        "subtext-light": "#6B7280",
+                        "subtext-dark": "#9CA3AF",
+
+                        // Culori Noi Design Dark Mode
+                        "background-dark": "#0B1120",
+                        "card-dark": "#162032",
+                        "surface-light": "#FFFFFF",
+                        "highlight": "#F97316",
+                    },
+                    fontFamily: {
+                        display: ["Inter", "sans-serif"],
+                        mono: ["JetBrains Mono", "monospace"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.5rem",
+                        "xl": "1rem",
+                        "2xl": "1.5rem",
+                        "3xl": "2rem",
+                    },
+                    boxShadow: {
+                        'glow-primary': '0 0 20px 0px rgba(59, 130, 246, 0.4)',
+                        'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.2)',
+                    }
+                },
+            },
+        };
+    </script>
+
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+
+<body
+    class="bg-background-light dark:bg-background-dark font-display antialiased text-gray-900 dark:text-gray-100 flex flex-col min-h-screen">
+
+    <div id="app-container" class="max-w-md mx-auto w-full flex-grow flex flex-col relative">
+
+        <div id="page-dashboard" class="page active p-6">
+            <header class="flex items-center justify-center py-4 relative">
+                <h1 class="text-xl font-semibold dark:text-white">Depozit</h1>
+                <button onclick="openSettingsModal()"
+                    class="absolute right-0 top-1/2 -translate-y-1/2 p-2 opacity-50 hover:opacity-100 transition-opacity">
+                    <span class="material-icons-outlined text-xl">settings</span>
+                </button>
+            </header>
+
+            <div id="search-zone" class="mb-6 mt-6">
+                <div id="search-container">
+                    <form id="search-form" class="dark:bg-card-dark bg-white shadow-sm"
+                        onsubmit="event.preventDefault();">
+                        <span id="search-icon" class="material-icons-outlined">search</span>
+                        <input type="text" id="search-input" placeholder="Caută produs..." class="dark:text-white">
+                    </form>
+                </div>
+
+                <button id="scan-find-button" onclick="startScanner('find')"
+                    class="w-full bg-primary text-white font-bold py-5 rounded-xl flex items-center justify-center space-x-2 text-lg mt-4 shadow-lg shadow-primary/30 transition-all duration-300 hover:bg-primary-dark">
+                    <span class="material-icons-outlined">qr_code_scanner</span>
+                    <span>Căută după QR</span>
+                </button>
+
+                <div id="find-results" class="space-y-4 mt-4 hidden"></div>
+            </div>
+
+            <main id="main-cards" class="flex-grow flex flex-col space-y-5 mt-6">
+                <a class="group block p-8 bg-card-light dark:bg-card-dark rounded-3xl transition-all duration-300 hover:scale-[1.02] hover:shadow-xl border border-transparent dark:border-gray-800"
+                    href="#" onclick="showPage('page-add-product')">
+                    <div class="flex items-center space-x-6">
+                        <div class="p-4 rounded-2xl bg-blue-50 dark:bg-gray-800/50 flex items-center justify-center">
+                            <span class="material-icons-outlined text-4xl text-primary">add_location_alt</span>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold dark:text-white">Adaugă Produs</h3>
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Asociază un produs cu o locație</p>
+                        </div>
+                    </div>
+                </a>
+
+                <a class="group block p-8 bg-card-light dark:bg-card-dark rounded-3xl transition-all duration-300 hover:scale-[1.02] hover:shadow-xl border border-transparent dark:border-gray-800"
+                    href="#" onclick="showPage('page-delete-product')">
+                    <div class="flex items-center space-x-6">
+                        <div class="p-4 rounded-2xl bg-red-50 dark:bg-gray-800/50 flex items-center justify-center">
+                            <span class="material-icons-outlined text-4xl text-red-500">delete_sweep</span>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold dark:text-white">Șterge Produs</h3>
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Șterge produse dintr-o locație</p>
+                        </div>
+                    </div>
+                </a>
+
+                <a class="group block p-8 bg-card-light dark:bg-card-dark rounded-3xl transition-all duration-300 hover:scale-[1.02] hover:shadow-xl border border-transparent dark:border-gray-800"
+                    href="#" onclick="openReturPage()">
+                    <div class="flex items-center space-x-6">
+                        <div class="p-4 rounded-2xl bg-orange-50 dark:bg-gray-800/50 flex items-center justify-center">
+                            <span class="material-icons-outlined text-4xl text-orange-500">assignment_return</span>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold dark:text-white">Procesare Retur</h3>
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Scanează AWB colet retur / neridicat</p>
+                        </div>
+                    </div>
+                </a>
+            </main>
+        </div>
+
+        <div id="page-find-product" class="page"></div>
+
+        <div id="page-add-product" class="page p-6 relative">
+            <button onclick="handleCancelAddFlow()" class="absolute top-6 right-6 p-2 z-10">
+                <span class="material-icons-outlined text-3xl">close</span>
+            </button>
+            <div id="add-step-1-products" class="animate-slide-in mt-8">
+                <h2 class="text-xl font-semibold mb-4 text-center">Pasul 1: Scanează Produsele</h2>
+                <p class="text-gray-500 mb-6 text-center">Scanează un produs pentru a-i adăuga cantitatea.</p>
+                <div id="add-product-list" class="space-y-2 mb-4 max-h-60 overflow-y-auto"></div>
+                <button onclick="startScanner('product')"
+                    class="w-full bg-primary text-white font-bold py-4 rounded-xl flex items-center justify-center space-x-2 text-lg shadow-lg mb-4">
+                    <span class="material-icons-outlined">qr_code_scanner</span>
+                    <span>Scanează Produs (SKU)</span>
+                </button>
+                <button id="add-to-location-btn" onclick="goToAddStep(2)"
+                    class="w-full bg-green-600 text-white font-bold py-4 rounded-xl flex items-center justify-center space-x-2 text-lg shadow-lg hidden">
+                    <span>Mergi la Locație</span>
+                    <span class="material-icons-outlined">arrow_forward</span>
+                </button>
+            </div>
+            <div id="add-step-1b-quantity" class="hidden animate-slide-in mt-8">
+                <h2 class="text-xl font-semibold mb-4 text-center">Setează Cantitatea</h2>
+                <div
+                    class="bg-card-light dark:bg-card-dark p-4 rounded-xl mb-6 text-center border dark:border-gray-700">
+                    <p class="text-sm text-gray-500">Produs (SKU):</p>
+                    <div id="add-quantity-sku" class="font-bold text-lg font-mono">...</div>
+                </div>
+                <label class="block text-sm font-medium mb-2">Cantitate:</label>
+                <input type="number" id="add-quantity-input" value="1" min="1"
+                    class="w-full p-4 text-lg rounded-xl border border-gray-300 dark:bg-gray-800 dark:border-gray-600 text-center dark:text-white">
+                <button onclick="confirmAddQuantity()"
+                    class="w-full bg-green-600 text-white font-bold py-4 rounded-xl flex items-center justify-center space-x-2 text-lg shadow-lg mt-6">
+                    <span>Adaugă</span>
+                    <span class="material-icons-outlined">check_circle</span>
+                </button>
+                <button onclick="goToAddStep(1)" class="w-full text-center text-primary mt-4 py-2">Anulează</button>
+            </div>
+            <div id="add-step-2-location" class="hidden animate-slide-in mt-8">
+                <h2 class="text-xl font-semibold mb-4 text-center">Pasul 2: Scanează Locația</h2>
+                <div
+                    class="bg-card-light dark:bg-card-dark p-4 rounded-xl mb-6 text-center border dark:border-gray-700">
+                    <p class="text-sm text-gray-500">De adăugat:</p>
+                    <div id="add-product-summary" class="font-bold text-lg">...</div>
+                </div>
+                <button onclick="startScanner('location')"
+                    class="w-full bg-primary text-white font-bold py-4 rounded-xl flex items-center justify-center space-x-2 text-lg shadow-lg">
+                    <span class="material-icons-outlined">pin_drop</span>
+                    <span>Scanează Locația</span>
+                </button>
+                <button onclick="goToAddStep(1)" class="w-full text-center text-primary mt-6">Modifică
+                    Produsele</button>
+            </div>
+            <div id="add-step-3-confirm" class="hidden animate-slide-in mt-8 flex flex-col h-full"
+                style="min-height: 70vh;">
+                <h2 class="text-xl font-semibold mb-4 text-center">Pasul 3: Confirmă</h2>
+                <div
+                    class="bg-card-light dark:bg-card-dark p-4 rounded-xl mb-4 text-center border dark:border-gray-700">
+                    <ul id="add-confirm-list" class="font-bold text-lg list-disc list-inside text-left p-2"></ul>
+                </div>
+                <div
+                    class="bg-card-light dark:bg-card-dark p-4 rounded-xl mb-6 text-center border dark:border-gray-700">
+                    <p class="text-sm text-gray-500">Locație:</p>
+                    <div id="add-confirm-location" class="font-bold text-lg">...</div>
+                </div>
+                <div class="mt-auto pt-6">
+                    <button onclick="saveMultiAdd()"
+                        class="w-full bg-green-600 text-white font-bold py-5 rounded-2xl flex items-center justify-center space-x-2 text-xl shadow-lg mb-4">
+                        <span class="material-icons-outlined">check_circle</span>
+                        <span>Salvează</span>
+                    </button>
+                    <div class="flex space-x-4">
+                        <button onclick="goToAddStep(2)" class="w-full text-center text-primary py-2">Schimbă
+                            Locația</button>
+                        <button onclick="goToAddStep(1)" class="w-full text-center text-primary py-2">Modifică
+                            Produsele</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="page-picking"
+            class="page bg-background-dark text-gray-100 h-[100dvh] overflow-hidden flex-col justify-between selection:bg-primary selection:text-white">
+
+            <header class="pt-4 pb-2 bg-background-dark z-10 shrink-0">
+                <div class="px-6 mb-2 flex justify-between items-start">
+                    <div class="flex flex-col">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Acțiune</span>
+                            <span id="multi-product-indicator"
+                                class="hidden text-[10px] font-bold bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded uppercase tracking-wider mb-1 border border-blue-500/30">Multi-Produs</span>
+                        </div>
+                        <h1 class="text-2xl font-extrabold text-white tracking-tight">Colectare</h1>
+                    </div>
+                    <button onclick="showPage('page-dashboard')"
+                        class="p-2 text-gray-400 hover:text-white transition-colors">
+                        <span class="material-symbols-outlined text-3xl">close</span>
+                    </button>
+                </div>
+
+                <div class="w-full px-6 mb-1">
+                    <div class="h-2.5 w-full bg-gray-800 rounded-full overflow-hidden mb-1">
+                        <div id="picking-progress-bar"
+                            class="h-full bg-primary w-0 rounded-full shadow-[0_0_12px_rgba(59,130,246,0.6)] transition-all duration-300">
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center text-xs font-semibold text-gray-400">
+                        <span id="picking-progress-text">Produs <span class="text-white">0</span> din 0</span>
+                        <span id="picking-progress-percent" class="text-primary">0%</span>
+                    </div>
+                </div>
+            </header>
+
+            <main class="flex-1 flex flex-col px-4 pb-2 min-h-0">
+                <section class="bg-card-dark rounded-3xl p-4 shadow-soft border border-gray-800/50 mt-1 shrink-0">
+                    <div class="flex items-center justify-center gap-1.5 mb-3 text-gray-400">
+                        <span class="material-symbols-outlined text-base">location_on</span>
+                        <span class="text-xs font-bold uppercase tracking-widest">Mergi la Locația</span>
+                    </div>
+                    <div class="flex items-center justify-between text-center relative px-1">
+                        <div class="flex-1 flex flex-col items-center justify-center">
+                            <span class="text-sm font-bold text-gray-500 uppercase mb-1">Rand</span>
+                            <span id="loc-row"
+                                class="text-4xl font-bold text-primary leading-none tracking-tight">-</span>
+                        </div>
+                        <div class="w-px h-10 bg-gray-700"></div>
+                        <div class="flex-1 flex flex-col items-center justify-center">
+                            <span class="text-sm font-bold text-gray-500 uppercase mb-1">Desc</span>
+                            <span id="loc-desc"
+                                class="text-4xl font-bold text-white leading-none tracking-tight">-</span>
+                        </div>
+                        <div class="w-px h-10 bg-gray-700"></div>
+                        <div class="flex-1 flex flex-col items-center justify-center">
+                            <span class="text-sm font-bold text-gray-500 uppercase mb-1">Poliță</span>
+                            <span id="loc-shelf"
+                                class="text-4xl font-bold text-white leading-none tracking-tight">-</span>
+                        </div>
+                        <div class="w-px h-10 bg-gray-700"></div>
+                        <div class="flex-1 flex flex-col items-center justify-center">
+                            <span class="text-sm font-bold text-gray-500 uppercase mb-1">Cutia</span>
+                            <span id="loc-box"
+                                class="text-4xl font-bold text-white leading-none tracking-tight">-</span>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="flex-1 flex flex-col items-center justify-evenly w-full min-h-0 py-2">
+                    <div class="text-center w-full flex flex-col justify-center">
+                        <span class="text-sm font-bold text-gray-500 uppercase tracking-[0.2em] mb-2 block">Cod
+                            Produs</span>
+                        <p id="picking-sku-display"
+                            class="font-mono text-3xl sm:text-5xl font-bold text-white break-all tracking-tighter leading-tight">
+                            ...
+                        </p>
+                    </div>
+                    <div
+                        class="text-center w-full max-w-xs bg-card-dark rounded-2xl p-4 border border-gray-800 shadow-soft">
+                        <span
+                            class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1 block">Cantitate</span>
+                        <p id="picking-qty-display" class="text-4xl font-black text-white tracking-tight">...</p>
+                    </div>
+                </section>
+            </main>
+
+            <footer class="p-4 bg-background-dark/90 backdrop-blur-md border-t border-gray-800 w-full shrink-0 z-20">
+                <div class="max-w-md mx-auto w-full flex flex-col gap-3">
+                    <button onclick="startPickingScan()"
+                        class="w-full bg-primary hover:bg-primary-dark active:scale-[0.98] transition-all duration-200 text-white font-bold py-3 px-6 rounded-2xl text-lg shadow-lg shadow-blue-500/20 flex items-center justify-center gap-3 group">
+                        <span
+                            class="material-symbols-outlined group-hover:rotate-12 transition-transform">qr_code_scanner</span>
+                        Scanează QR Produs
+                    </button>
+                    <button onclick="skipPickingStop()"
+                        class="w-full bg-card-dark border border-gray-700 py-3 px-6 rounded-2xl text-lg font-bold text-gray-300 hover:bg-gray-800 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2">
+                        <span>Sari peste această comandă</span>
+                        <span class="material-symbols-outlined text-xl">arrow_forward</span>
+                    </button>
+                </div>
+            </footer>
+
+            <div id="picking-error-overlay"
+                class="hidden absolute inset-0 bg-red-600/90 backdrop-blur-sm z-[60] flex flex-col items-center justify-center p-8 text-white">
+                <div id="lottie-error-container" class="w-80 h-80"></div>
+                <p class="mt-4 text-2xl font-bold uppercase tracking-widest opacity-90">Produs Greșit</p>
+            </div>
+
+            <div id="picking-success-overlay"
+                class="hidden absolute inset-0 bg-background-dark z-[60] flex flex-col items-center justify-center p-6 text-white">
+                <div class="flex items-center gap-3 bg-white/5 py-3 px-5 rounded-2xl w-full max-w-sm mb-8">
+                    <div class="bg-green-500 rounded-full p-1 flex items-center justify-center">
+                        <span class="material-symbols-outlined text-white text-xl">check</span>
+                    </div>
+                    <p class="text-lg font-medium">Toate produsele au fost ridicate!</p>
+                </div>
+
+                <div class="flex-1 flex flex-col items-center justify-center w-full">
+                    <p class="text-gray-400 text-center text-lg mb-8 max-w-[280px]">
+                        Mergi la imprimantă, AWB-ul se va printa automat în:
+                    </p>
+                    <div class="relative w-64 h-64 flex items-center justify-center">
+                        <svg class="w-full h-full rotate-[-90deg]">
+                            <circle cx="128" cy="128" r="120" stroke="#1f2937" stroke-width="12" fill="transparent">
+                            </circle>
+                            <circle id="success-timer-ring" cx="128" cy="128" r="120" stroke="#3b82f6" stroke-width="12"
+                                fill="transparent" stroke-dasharray="754" stroke-dashoffset="0" stroke-linecap="round"
+                                class="transition-all duration-1000 ease-linear"></circle>
+                        </svg>
+                        <div class="absolute flex flex-col items-center">
+                            <span id="success-timer-count" class="text-7xl font-bold tracking-tighter">5</span>
+                            <span class="text-xl text-gray-500 uppercase tracking-widest mt-1">secunde</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="picking-item-success-overlay"
+                class="hidden absolute inset-0 bg-green-600 z-[60] flex flex-col items-center justify-center p-8 text-white">
+                <span class="material-symbols-outlined text-9xl mb-6 scale-150">check_circle</span>
+                <h2 class="text-4xl font-extrabold uppercase tracking-widest text-center">Produs<br>Corect!</h2>
+                <p class="mt-8 text-xl font-medium opacity-90 text-center">Continuă comanda...</p>
+                <div class="mt-8 flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full">
+                    <span class="material-symbols-outlined text-sm">inventory_2</span>
+                    <span class="text-sm font-bold uppercase tracking-wide">Comandă Multi-Produs</span>
+                </div>
+            </div>
+
+            <div id="picking-complete"
+                class="hidden absolute inset-0 bg-background-dark z-50 flex flex-col items-center justify-center p-8">
+                <span class="material-symbols-outlined text-8xl text-green-500 mb-4">task_alt</span>
+                <h2 class="text-3xl font-bold text-white mb-2">Picking Finalizat!</h2>
+                <p class="text-gray-400 mb-8">Toate produsele au fost ridicate.</p>
+                <button onclick="showPage('page-dashboard')"
+                    class="bg-primary text-white font-bold py-4 px-8 rounded-2xl w-full max-w-xs shadow-lg">
+                    Înapoi la Dashboard
+                </button>
+            </div>
+        </div>
+
+        <div id="page-delete-product" class="page p-6 relative">
+            <button onclick="handleCancelDeleteFlow()" class="absolute top-6 right-6 p-2 z-10">
+                <span class="material-icons-outlined text-3xl">close</span>
+            </button>
+            <div id="delete-step-1-products" class="animate-slide-in mt-8">
+                <h2 class="text-xl font-semibold mb-4 text-center">Pasul 1: Scanează</h2>
+                <div id="delete-product-list" class="space-y-2 mb-4 max-h-60 overflow-y-auto"></div>
+                <button onclick="startScanner('delete_product')"
+                    class="w-full bg-primary text-white font-bold py-4 rounded-xl flex items-center justify-center space-x-2 text-lg shadow-lg mb-4">
+                    <span class="material-icons-outlined">qr_code_scanner</span><span>Scanează Produs</span>
+                </button>
+                <button id="delete-to-location-btn" onclick="goToDeleteStep(2)"
+                    class="w-full bg-green-600 text-white font-bold py-4 rounded-xl flex items-center justify-center space-x-2 text-lg shadow-lg hidden">
+                    <span>Scanează Locația</span><span class="material-icons-outlined">arrow_forward</span>
+                </button>
+            </div>
+            <div id="delete-step-1b-quantity" class="hidden animate-slide-in mt-8">
+                <h2 class="text-xl font-semibold mb-4 text-center">Cantitate de șters</h2>
+                <div
+                    class="bg-card-light dark:bg-card-dark p-4 rounded-xl mb-6 text-center border dark:border-gray-700">
+                    <p id="delete-quantity-sku" class="font-bold text-lg font-mono">...</p>
+                </div>
+                <input type="number" id="delete-quantity-input" value="1" min="1"
+                    class="w-full p-4 text-lg rounded-xl border border-gray-300 dark:bg-gray-800 dark:border-gray-600 text-center dark:text-white">
+                <button onclick="confirmDeleteQuantity()"
+                    class="w-full bg-red-600 text-white font-bold py-4 rounded-xl flex items-center justify-center space-x-2 text-lg shadow-lg mt-6">
+                    <span>Confirmă Cantitatea</span>
+                </button>
+                <button onclick="goToDeleteStep(1)" class="w-full text-center text-primary mt-4 py-2">Anulează</button>
+            </div>
+            <div id="delete-step-2-location" class="hidden animate-slide-in mt-8">
+                <h2 class="text-xl font-semibold mb-4 text-center">Pasul 2: Scanează Locația</h2>
+                <div
+                    class="bg-card-light dark:bg-card-dark p-4 rounded-xl mb-6 text-center border dark:border-gray-700">
+                    <div id="delete-summary-text" class="font-bold text-lg">...</div>
+                </div>
+                <button onclick="startScanner('delete_location')"
+                    class="w-full bg-primary text-white font-bold py-4 rounded-xl flex items-center justify-center space-x-2 text-lg shadow-lg">
+                    <span class="material-icons-outlined">pin_drop</span><span>Scanează Locația</span>
+                </button>
+                <button onclick="goToDeleteStep(1)" class="w-full text-center text-primary mt-6">Modifică</button>
+            </div>
+            <div id="delete-step-3-confirm" class="hidden animate-slide-in mt-8">
+                <h2 class="text-xl font-semibold mb-4 text-center">Confirmă Ștergerea</h2>
+                <div
+                    class="bg-card-light dark:bg-card-dark p-5 rounded-2xl shadow-lg space-y-4 border dark:border-gray-700">
+                    <div>
+                        <h4 class="text-sm font-semibold text-gray-500 mb-1">Produse:</h4>
+                        <div id="delete-confirm-product" class="text-lg font-bold">...</div>
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-semibold text-gray-500 mb-1">Din:</h4>
+                        <div id="delete-confirm-location" class="text-lg font-bold text-red-500">...</div>
+                    </div>
+                </div>
+                <button onclick="saveDeleteProduct()"
+                    class="w-full bg-red-600 text-white font-bold py-5 rounded-2xl flex items-center justify-center space-x-2 text-xl shadow-lg mt-8">
+                    <span class="material-icons-outlined">delete_forever</span><span>Confirmă</span>
+                </button>
+                <button onclick="resetDeleteFlow(true)" class="w-full text-center text-primary mt-6">Anulează</button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- PAGE: PROCESARE RETUR                                        -->
+    <!-- ============================================================ -->
+    <div id="page-retur" class="page p-6 relative">
+        <button onclick="showPage('page-dashboard')" class="absolute top-6 right-6 p-2 z-10">
+            <span class="material-icons-outlined text-3xl">close</span>
+        </button>
+
+        <header class="mt-2 mb-6">
+            <h2 class="text-2xl font-bold dark:text-white">Procesare Retur</h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Scanează AWB-ul de pe coletul primit.</p>
+        </header>
+
+        <!-- Stare: se încarcă date -->
+        <div id="retur-loading-state" class="hidden flex flex-col items-center justify-center py-12 space-y-4">
+            <div class="spinner"></div>
+            <p class="text-gray-500 dark:text-gray-400">Se preîncarcă datele...</p>
+        </div>
+
+        <!-- Stare: eroare -->
+        <div id="retur-error-state" class="hidden flex flex-col items-center justify-center py-12 space-y-4">
+            <span class="material-icons-outlined text-5xl text-red-500">error_outline</span>
+            <p class="text-red-400 text-center">Eroare la preîncărcarea datelor.</p>
+            <button onclick="openReturPage()" class="retur-btn retur-btn--scan">
+                <span class="material-icons-outlined">refresh</span> Reîncearcă
+            </button>
+        </div>
+
+        <!-- Stare: gata de scanare -->
+        <div id="retur-ready-state" class="hidden">
+            <button id="scan-retur-button" onclick="startReturScan()"
+                class="w-full bg-orange-500 text-white font-bold py-5 rounded-xl flex items-center justify-center space-x-2 text-lg shadow-lg shadow-orange-500/30 transition-all duration-300 hover:bg-orange-600 mb-6">
+                <span class="material-icons-outlined">qr_code_scanner</span>
+                <span>Scanează AWB Retur</span>
+            </button>
+        </div>
+
+        <!-- Panoul cu rezultatul scanării (RMA sau Comandă) -->
+        <div id="retur-result-panel" class="hidden"></div>
+    </div>
+
+    <div id="floating-order-bubble" class="hidden" onclick="showPage('page-picking')">
+        <span class="material-icons-outlined">notifications_active</span>
+        <span id="floating-order-count">0</span>
+    </div>
+
+    <div id="notification-footer" class="max-w-md mx-auto">
+        <div onclick="showPage('page-picking')"
+            class="relative bg-primary rounded-2xl shadow-lg shadow-primary/30 dark:shadow-glow-primary overflow-hidden animate-slide-in cursor-pointer"
+            id="order-notification">
+            <div class="absolute -top-8 -right-8 w-32 h-32 bg-white/10 rounded-full"></div>
+            <div class="absolute -bottom-12 -left-4 w-24 h-24 bg-white/10 rounded-full"></div>
+            <div class="relative p-6 flex items-center space-x-4">
+                <div class="flex-shrink-0 w-14 h-14 bg-white/20 rounded-full flex items-center justify-center">
+                    <span class="material-icons-outlined text-white text-3xl">notifications_active</span>
+                </div>
+                <div>
+                    <h2 class="text-lg font-bold text-white" id="order-notification-title-footer">Comenzi de pregătit
+                    </h2>
+                    <p class="text-sm text-white/80" id="order-notification-text-footer">X comenzi așteaptă pregătirea.
+                    </p>
+                </div>
+                <button class="absolute top-3 right-3 p-1 text-white/60 hover:text-white transition-colors z-10"
+                    onclick="hideOrderNotification(event)">
+                    <span class="material-icons-outlined text-xl">close</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="scanner-modal">
+        <div class="text-white text-lg p-4 text-center" id="scanner-message">Așezați codul QR în cadru</div>
+        <video id="qr-video" style="width: 90%; max-width: 400px; border-radius: 1rem;"></video>
+        <button onclick="stopScanner()" class="mt-6 bg-red-600 text-white font-bold py-3 px-8 rounded-xl text-lg">
+            Anulează
+        </button>
+    </div>
+
+    <div id="toast"></div>
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+    </div>
+
+    <div id="settings-modal"
+        class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto">
+        <div
+            class="bg-card-light dark:bg-card-dark w-full max-w-lg rounded-2xl p-6 shadow-2xl animate-slide-in border border-gray-200 dark:border-gray-700 my-4">
+
+            <!-- Header -->
+            <div class="flex items-center justify-between mb-5">
+                <h3 class="text-lg font-bold dark:text-white">Setări</h3>
+                <button onclick="closeSettingsModal()" class="p-1 text-gray-400 hover:text-white transition-colors">
+                    <span class="material-icons-outlined">close</span>
+                </button>
+            </div>
+
+            <!-- Secțiunea Test Print -->
+            <div class="mb-6 space-y-3">
+                <button onclick="testPrint()"
+                    class="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-500/30 hover:bg-blue-700 transition-colors">
+                    <span class="material-icons-outlined text-base">print</span>
+                    Test Print (Trendyol AWB)
+                </button>
+                <button onclick="reprintLastAwb()"
+                    class="w-full flex items-center justify-center gap-2 py-3 bg-purple-600 text-white rounded-xl font-bold shadow-lg shadow-purple-500/30 hover:bg-purple-700 transition-colors">
+                    <span class="material-icons-outlined text-base">receipt_long</span>
+                    Retipărește Ultimul AWB
+                </button>
+            </div>
+
+            <!-- Calibrare Imprimantă -->
+            <div class="mb-6">
+                <button onclick="calibratePrinter()"
+                    class="w-full flex items-center justify-center gap-2 py-3 bg-gray-700 text-white rounded-xl font-bold hover:bg-gray-600 active:scale-[0.98] transition-all border border-gray-600">
+                    <span class="material-icons-outlined text-base">tune</span>
+                    🔧 Calibrare Completă Imprimantă
+                </button>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1.5 text-center">Aceasta va avansa 2-3 etichete pentru calibrare.</p>
+            </div>
+
+            <!-- Separator -->
+            <div class="border-t border-gray-200 dark:border-gray-700 my-5"></div>
+
+            <!-- Secțiunea Bluetooth Printer -->
+            <div>
+                <h4 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">🖨️
+                    Imprimantă Bluetooth</h4>
+
+                <!-- Status Conexiune -->
+                <div
+                    class="flex items-center justify-between bg-gray-100 dark:bg-gray-800/60 rounded-xl p-4 mb-4 border border-gray-200 dark:border-gray-700">
+                    <div class="flex items-center gap-3">
+                        <div id="bt-status-dot" class="w-3 h-3 rounded-full bg-red-500"></div>
+                        <div>
+                            <p id="bt-status-text" class="text-sm font-semibold text-red-400">Deconectat</p>
+                            <p id="bt-saved-mac" class="text-xs text-gray-400 font-mono mt-0.5">Niciun dispozitiv salvat
+                            </p>
+                        </div>
+                    </div>
+                    <button onclick="window.BluetoothPrinter.forget()"
+                        class="text-xs text-gray-400 hover:text-red-400 transition-colors px-2 py-1 rounded-lg border border-gray-300 dark:border-gray-600">
+                        Uită
+                    </button>
+                </div>
+
+                <!-- Buton Listare Dispozitive -->
+                <button onclick="openBluetoothSettings()"
+                    class="w-full flex items-center justify-center gap-2 py-3 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-semibold dark:text-white hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors mb-3">
+                    <span class="material-icons-outlined text-base">bluetooth_searching</span>
+                    Listează Dispozitive Paired
+                </button>
+
+                <!-- Lista Dispozitive (ascunsă inițial) -->
+                <div id="bt-devices-panel" class="hidden">
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">Selectează imprimanta Zebra:</p>
+                    <div id="bt-devices-list" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                        <!-- Populat dinamic de bluetooth.js -->
+                    </div>
+                </div>
+
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-3 text-center">
+                    Asigură-te că Zebra ZQ521 este imperecheat în Setările Android înainte de conectare.
+                </p>
+            </div>
+
+            <!-- Separator -->
+            <div class="border-t border-gray-200 dark:border-gray-700 my-5"></div>
+
+            <!-- Secțiunea Log-uri (AWB / Factură) -->
+            <div>
+                <div class="flex items-center justify-between mb-3">
+                    <h4 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">📋 Log-uri AWB & Factură</h4>
+                    <span id="logs-panel-count" class="text-xs text-gray-400">0</span>
+                </div>
+                <div id="logs-panel-list" class="max-h-72 overflow-y-auto pr-1"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <script type="module" src="scripts/state.js"></script>
+    <script type="module" src="scripts/utils.js"></script>
+    <script type="module" src="scripts/logger.js"></script>
+    <script type="module" src="scripts/api.js"></script>
+    <script type="module" src="scripts/scanner.js"></script>
+    <script type="module" src="scripts/flow-search.js"></script>
+    <script type="module" src="scripts/flow-add.js"></script>
+    <script type="module" src="scripts/flow-delete.js"></script>
+    <script type="module" src="scripts/flow-picking.js"></script>
+    <script type="module" src="scripts/main.js"></script>
+    <script type="module" src="scripts/hardware-scanner.js"></script>
+    <script type="module" src="scripts/printer.js"></script>
+    <script type="module" src="scripts/bluetooth.js"></script>
+    <script type="module" src="scripts/flow-retur.js"></script>
+</body>
+
+</html>

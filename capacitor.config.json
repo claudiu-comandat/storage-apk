@@ -1,0 +1,33 @@
+{
+    "appId": "com.storage.apk",
+    "appName": "Manager Stocuri",
+    "webDir": "www",
+    "android": {
+        "minWebViewVersion": 60,
+        "buildOptions": {
+            "keystorePath": null,
+            "keystoreAlias": null
+        }
+    },
+    "plugins": {
+        "CapacitorHttp": {
+            "enabled": true
+        },
+        "SplashScreen": {
+            "launchShowDuration": 0
+        }
+    },
+    "cordova": {
+        "preferences": {
+            "ScrollEnabled": "false",
+            "android-minSdkVersion": "24",
+            "android-targetSdkVersion": "35",
+            "BackupWebStorage": "none",
+            "SplashMaintainAspectRatio": "true",
+            "FadeSplashScreenDuration": "300",
+            "SplashShowOnlyFirstTime": "false",
+            "SplashScreen": "screen",
+            "SplashScreenDelay": "0"
+        }
+    }
+}
