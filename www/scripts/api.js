@@ -170,7 +170,7 @@ async function sendPrintAwbRequest(payload) {
     }
 }
 
-const OPENSALES_API_KEY = 'ops_MBg2GT6hJ04Q-on_xSTH17DayzOmJ9Oh';
+const OPENSALES_API_KEY = 'ops_98OMz81fhBv_rI5Sjq_qUlE2glG2QM-q';
 
 async function fetchAwbAndConvert(internalId) {
     const url = `https://opensalesapi-production-4572.up.railway.app/orders/${internalId}/awb-outgoing/get-or-issue`;
