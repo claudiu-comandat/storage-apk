@@ -122,6 +122,10 @@ function handleReturAwbScan(awb) {
 
     if (rmaMatch) {
         returCurrentRma = rmaMatch;
+        // eMAG nu leagă RMA-ul de o comandă OpenSales; căutăm comanda cu același AWB
+        // ca să avem un id valid pentru storno la finalizare (vezi submitRma).
+        const linkedOrder = findOrderByAwb(cleanAwb);
+        returCurrentRma.__linkedOrderId = linkedOrder?.id || null;
         showRmaPanel(rmaMatch);
         return;
     }
@@ -136,14 +140,8 @@ function handleReturAwbScan(awb) {
         return;
     }
 
-    // 3. Fallback: caută în comenzile EasySales
-    const orderMatch = returOrders.find(order => {
-        const awbIds = Array.isArray(order.awb_id) ? order.awb_id : [];
-        const shipmentAwbs = (order.shipments || []).flatMap(s =>
-            Array.isArray(s.awb_id) ? s.awb_id : []
-        );
-        return [...awbIds, ...shipmentAwbs].some(a => String(a).trim() === cleanAwb);
-    });
+    // 3. Fallback: caută în comenzile OpenSales
+    const orderMatch = findOrderByAwb(cleanAwb);
 
     if (orderMatch) {
         returCurrentOrder = orderMatch;
@@ -155,11 +153,30 @@ function handleReturAwbScan(awb) {
     showReturNotFound(cleanAwb);
 }
 
-/** Extrage AWB-urile dintr-un obiect RMA */
+/** Caută o comandă OpenSales după AWB (de livrare sau de retur) */
+function findOrderByAwb(awb) {
+    return returOrders.find(order => {
+        const awbs = [order.awbNumber, order.awbReturn?.number]
+            .filter(Boolean)
+            .map(a => String(a).trim());
+        return awbs.includes(awb);
+    });
+}
+
+/** Extrage AWB-urile dintr-un obiect RMA (rma.awbs este listă de obiecte, nu string-uri) */
 function extractRmaAwbs(rma) {
     const awbs = [];
     if (rma.awb) awbs.push(String(rma.awb).trim());
-    if (Array.isArray(rma.awbs)) rma.awbs.forEach(a => awbs.push(String(a).trim()));
+    if (Array.isArray(rma.awbs)) {
+        rma.awbs.forEach(a => {
+            if (a && typeof a === 'object') {
+                if (a.awb_number) awbs.push(String(a.awb_number).trim());
+                if (a.awb_barcode) awbs.push(String(a.awb_barcode).trim());
+            } else if (a != null) {
+                awbs.push(String(a).trim());
+            }
+        });
+    }
     return awbs;
 }
 
@@ -287,10 +304,8 @@ async function submitRma(event, action) {
         // Dacă refuzat, NU trimitem taxe
         return_tax_value: action !== 'refuzat' && taxa > 0 ? taxa : undefined,
         retained_amount: action !== 'refuzat' && retinuta > 0 ? retinuta : undefined,
-        // Dacă finalizat și există taxe, trimitem și suma totală pentru FGO
-        taxa_returnare_fgo: action === 'finalizat' && (taxa > 0 || retinuta > 0) ? (taxa + retinuta) : undefined,
-        // internal_order_id necesar pentru storno EasySales
-        internal_order_id: returCurrentRma.internal_order_id || null,
+        // internal_order_id necesar pentru storno; legat prin AWB comun cu comanda OpenSales
+        internal_order_id: returCurrentRma.__linkedOrderId || returCurrentRma.internal_order_id || null,
     };
 
     // Dezactivare buton prevenire dublu-click
@@ -307,8 +322,16 @@ async function submitRma(event, action) {
 
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
+        let result = null;
+        try { result = await response.json(); } catch (e) { /* body opțional */ }
+
         const actionLabel = action === 'finalizat' ? 'Finalizat' : 'Refuzat';
-        showToast(`Cerere de retur ${actionLabel} cu succes!`);
+        // Dacă storno-ul a fost sărit (comanda OpenSales nu a putut fi legată), NU pretinde succes total.
+        if (action === 'finalizat' && result && result.skipped) {
+            showToast('RMA salvat, dar storno-ul NU s-a emis (comandă OpenSales nelegată). Verifică manual.', true);
+        } else {
+            showToast(`Cerere de retur ${actionLabel} cu succes!`);
+        }
         showPage('page-dashboard');
     } catch (err) {
         console.error('Eroare la trimiterea RMA:', err);
@@ -327,7 +350,8 @@ function showOrderPanel(order) {
     const panel = document.getElementById('retur-result-panel');
     panel.innerHTML = '';
 
-    const products = (order.products || []).map(p =>
+    const items = order.allItems || (order.firstItem ? [order.firstItem] : []);
+    const products = items.map(p =>
         `<li><span class="retur-sku">${p.sku || '-'}</span> — ${p.name || '-'} × <strong>${p.quantity}</strong></li>`
     ).join('');
 
@@ -335,19 +359,37 @@ function showOrderPanel(order) {
         <div class="retur-card">
             <div class="retur-card-header retur-card-header--order">
                 <span class="material-icons-outlined">inventory_2</span>
-                <h3>Comandă EasySales</h3>
+                <h3>Comandă</h3>
                 <span class="retur-badge retur-badge--order">${order.status || '-'}</span>
             </div>
             <div class="retur-info-grid">
-                <div class="retur-info-item"><label>ID Intern</label><span class="retur-mono">${order.internal_id || '-'}</span></div>
-                <div class="retur-info-item"><label>ID Comandă</label><span class="retur-mono">${order.order_display_id || order.id || '-'}</span></div>
+                <div class="retur-info-item"><label>ID Comandă</label><span class="retur-mono">${order.externalId || order.id || '-'}</span></div>
                 <div class="retur-info-item"><label>Client</label><span>${order.customer?.name || '-'}</span></div>
-                <div class="retur-info-item"><label>Marketplace</label><span>${order.marketplace || order.website || '-'}</span></div>
+                <div class="retur-info-item"><label>Marketplace</label><span>${order.marketplace || '-'}</span></div>
             </div>
             <div class="retur-products">
                 <label>Produse:</label>
                 <ul class="retur-product-list">${products || '<li>Niciun produs</li>'}</ul>
             </div>
+
+            <div class="retur-form">
+                <div class="retur-form-row">
+                    <label for="retur-taxa-input">Taxă Retur (RON)</label>
+                    <input type="number" id="retur-taxa-input" value="0" min="0" step="0.01" placeholder="0.00" class="retur-input" oninput="updateReturTotal()">
+                </div>
+                <div class="retur-form-row">
+                    <label for="retur-retinuta-input">Sumă Reținută (RON)</label>
+                    <input type="number" id="retur-retinuta-input" value="0" min="0" step="0.01" placeholder="0.00" class="retur-input" oninput="updateReturTotal()">
+                </div>
+                <div id="retur-total-display" class="retur-total-display hidden">
+                    Total Tax Returnare: <strong id="retur-total-value">0 RON</strong>
+                </div>
+                <div class="retur-form-row">
+                    <label for="retur-observatii-input">Observații <span id="retur-obs-required" class="retur-required hidden">*obligatoriu</span></label>
+                    <textarea id="retur-observatii-input" class="retur-textarea" rows="3" placeholder="Adaugă observații..."></textarea>
+                </div>
+            </div>
+
             <div class="retur-actions">
                 <button onclick="confirmNeridicat(event)" class="retur-btn retur-btn--neridicat">
                     <span class="material-icons-outlined">do_not_disturb_on</span> Confirmă Produs Neridicat
@@ -357,6 +399,7 @@ function showOrderPanel(order) {
     `;
 
     panel.classList.remove('hidden');
+    updateReturTotal();
 }
 
 // ============================================================
@@ -365,12 +408,24 @@ function showOrderPanel(order) {
 
 async function confirmNeridicat(event) {
     if (!returCurrentOrder) return;
-    if (!returCurrentOrder.internal_id) {
-        showToast('ID intern comandă lipsă. Nu se poate continua.', true);
+    if (!returCurrentOrder.id) {
+        showToast('ID comandă lipsă. Nu se poate continua.', true);
         return;
     }
 
-    const confirmed = confirm(`Confirmi că această comandă (#${returCurrentOrder.order_display_id || returCurrentOrder.id}) are produse neridicate?\nSe va genera Factură Storno în EasySales.`);
+    const taxa = parseFloat(document.getElementById('retur-taxa-input')?.value) || 0;
+    const retinuta = parseFloat(document.getElementById('retur-retinuta-input')?.value) || 0;
+    const observatii = document.getElementById('retur-observatii-input')?.value?.trim() || '';
+
+    if ((taxa > 0 || retinuta > 0) && !observatii) {
+        const obsRequired = document.getElementById('retur-obs-required');
+        if (obsRequired) obsRequired.classList.remove('hidden');
+        document.getElementById('retur-observatii-input').focus();
+        showToast('Observațiile sunt obligatorii când există taxe sau sume reținute!', true);
+        return;
+    }
+
+    const confirmed = confirm(`Confirmi că această comandă (#${returCurrentOrder.externalId || returCurrentOrder.id}) are produse neridicate?\nSe va genera Factură Storno.`);
     if (!confirmed) return;
 
     // Prevenire dublu click
@@ -382,12 +437,17 @@ async function confirmNeridicat(event) {
         const response = await fetch(RETUR_STORNO_NERIDICAT_WEBHOOK, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ internal_order_id: returCurrentOrder.internal_id })
+            body: JSON.stringify({
+                internal_order_id: returCurrentOrder.id,
+                return_tax_value: taxa > 0 ? taxa : undefined,
+                retained_amount: retinuta > 0 ? retinuta : undefined,
+                observations: observatii || undefined,
+            })
         });
 
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-        showToast('Factură Storno generată în EasySales!');
+        showToast('Factură Storno generată!');
         showPage('page-dashboard');
     } catch (err) {
         console.error('Eroare la confirmarea produsului neridicat:', err);
@@ -468,7 +528,8 @@ async function fetchTrendyolReasons() {
 // AFIȘARE PANEL TRENDYOL CLAIM
 // ============================================================
 
-const TRENDYOL_NO_PHOTO_REASON_IDS = new Set([1651, 451]);
+// Motive care NU cer poză — aliniat cu backend-ul (plugin Trendyol REJECT_NO_PHOTO_REASON_IDS).
+const TRENDYOL_NO_PHOTO_REASON_IDS = new Set([1651, 451, 2101]);
 
 function showTrendyolClaimPanel(claim) {
     returTrendyolPhotoBase64 = null;
@@ -598,7 +659,14 @@ async function approveTrendyolClaim(event) {
             }),
         });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        showToast('Retur Trendyol aprobat!');
+        let result = null;
+        try { result = await response.json(); } catch (e) { /* body opțional */ }
+        // Aprobarea la Trendyol e primară; storno-ul local e best-effort (poate cere reconciliere).
+        if (result && result.storno && result.storno.emitted === false) {
+            showToast('Aprobat la Trendyol. Storno de verificat manual: ' + (result.storno.reason || ''), true);
+        } else {
+            showToast('Retur Trendyol aprobat!');
+        }
         showPage('page-dashboard');
     } catch (err) {
         console.error('Eroare aprobare claim Trendyol:', err);
