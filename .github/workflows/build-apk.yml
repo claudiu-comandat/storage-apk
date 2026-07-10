@@ -81,6 +81,17 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x android/gradlew
 
+      # 10b. Semnătură STABILĂ: refolosește același debug keystore la fiecare build.
+      # Fără asta, runner-ul generează un keystore random per build → fiecare APK are
+      # altă semnătură → update over-the-top și self-update-ul din aplicație eșuează cu
+      # „signatures do not match" (INSTALL_FAILED_UPDATE_INCOMPATIBLE). debug.keystore
+      # e commis în repo intenționat: e cheia debug standard (parola publică „android"),
+      # nu un secret — servește doar la a păstra identitatea aplicației constantă.
+      - name: Use persistent debug keystore
+        run: |
+          mkdir -p ~/.android
+          cp debug.keystore ~/.android/debug.keystore
+
       # 11. Build APK Debug
       - name: Build Debug APK
         working-directory: android
