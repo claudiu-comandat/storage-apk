@@ -3,17 +3,18 @@
 // ============================================================
 
 // --- Stare locală a modulului ---
-let returOrders = [];       // Comenzile EasySales preîncărcate
 let returRmaList = [];      // Lista RMA eMAG preîncărcată
 let returCurrentRma = null; // RMA activ găsit la scanare
-let returCurrentOrder = null; // Comanda EasySales activă găsită la scanare
+let returCurrentOrder = null; // Comanda OpenSales activă găsită la scanare
 let returTrendyolClaims = [];
 let returTrendyolReasons = [];
 let returCurrentTrendyolClaim = null;
 let returTrendyolPhotoBase64 = null;
 
 // --- URL-uri webhook (n8n) ---
-const RETUR_FETCH_ORDERS_WEBHOOK   = 'https://automatizare.comandat.ro/webhook/retur-fetch-orders';
+// Lookup comandă după AWB (on-demand, la scanare). Același webhook n8n, dar acum
+// întoarce O SINGURĂ comandă (OpenSales /orders?awb=), nu toată lista (evită 11MB + crash).
+const RETUR_LOOKUP_ORDER_WEBHOOK   = 'https://automatizare.comandat.ro/webhook/retur-fetch-orders';
 const RETUR_FETCH_RMA_WEBHOOK      = 'https://automatizare.comandat.ro/webhook/retur-fetch-rma';
 const RETUR_SAVE_RMA_WEBHOOK       = 'https://automatizare.comandat.ro/webhook/retur-save-rma';
 const RETUR_STORNO_NERIDICAT_WEBHOOK = 'https://automatizare.comandat.ro/webhook/retur-storno-neridicat';
@@ -41,17 +42,14 @@ async function openReturPage() {
 
     try {
         showLoading(true);
-        // Preîncărcăm în paralel: comenzile EasySales și RMA-urile eMAG
-        const [ordersResult, rmaResult, trendyolClaimsResult, trendyolReasonsResult] = await Promise.allSettled([
-            fetchReturOrders(),
+        // Preîncărcăm doar listele mici (RMA eMAG + claims Trendyol). Comenzile NU se mai
+        // preîncarcă — se caută la scanare, după AWB (vezi findOrderByAwb).
+        const [rmaResult, trendyolClaimsResult, trendyolReasonsResult] = await Promise.allSettled([
             fetchReturRmaList(),
             fetchTrendyolClaims(),
             fetchTrendyolReasons()
         ]);
 
-        if (ordersResult.status === 'rejected') {
-            console.error('Eroare preîncărcare comenzi EasySales:', ordersResult.reason);
-        }
         if (rmaResult.status === 'rejected') {
             console.error('Eroare preîncărcare RMA eMAG:', rmaResult.reason);
         }
@@ -77,14 +75,6 @@ async function openReturPage() {
 // FETCH DATE
 // ============================================================
 
-async function fetchReturOrders() {
-    const response = await fetch(RETUR_FETCH_ORDERS_WEBHOOK, { method: 'POST' });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
-    returOrders = Array.isArray(data) ? data : [];
-    console.log(`[Retur] ${returOrders.length} comenzi EasySales preîncărcate.`);
-}
-
 async function fetchReturRmaList() {
     const response = await fetch(RETUR_FETCH_RMA_WEBHOOK, { method: 'POST' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -105,7 +95,7 @@ function startReturScan() {
  * Apelat de scanner.js când modul este 'retur_awb'.
  * Caută AWB-ul mai întâi în RMA, apoi în comenzile EasySales.
  */
-function handleReturAwbScan(awb) {
+async function handleReturAwbScan(awb) {
     const cleanAwb = awb.trim();
     resetReturResultPanel();
     returCurrentRma = null;
@@ -124,7 +114,7 @@ function handleReturAwbScan(awb) {
         returCurrentRma = rmaMatch;
         // eMAG nu leagă RMA-ul de o comandă OpenSales; căutăm comanda cu același AWB
         // ca să avem un id valid pentru storno la finalizare (vezi submitRma).
-        const linkedOrder = findOrderByAwb(cleanAwb);
+        const linkedOrder = await findOrderByAwb(cleanAwb);
         returCurrentRma.__linkedOrderId = linkedOrder?.id || null;
         showRmaPanel(rmaMatch);
         return;
@@ -141,7 +131,7 @@ function handleReturAwbScan(awb) {
     }
 
     // 3. Fallback: caută în comenzile OpenSales
-    const orderMatch = findOrderByAwb(cleanAwb);
+    const orderMatch = await findOrderByAwb(cleanAwb);
 
     if (orderMatch) {
         returCurrentOrder = orderMatch;
@@ -153,14 +143,26 @@ function handleReturAwbScan(awb) {
     showReturNotFound(cleanAwb);
 }
 
-/** Caută o comandă OpenSales după AWB (de livrare sau de retur) */
-function findOrderByAwb(awb) {
-    return returOrders.find(order => {
-        const awbs = [order.awbNumber, order.awbReturn?.number]
-            .filter(Boolean)
-            .map(a => String(a).trim());
-        return awbs.includes(awb);
-    });
+/**
+ * Caută o comandă OpenSales după AWB (de livrare sau de retur), on-demand.
+ * n8n întoarce O SINGURĂ comandă (OpenSales /orders?awb=), nu toată lista.
+ * Întoarce comanda sau null dacă nu există / a apărut o eroare.
+ */
+async function findOrderByAwb(awb) {
+    try {
+        const response = await fetch(RETUR_LOOKUP_ORDER_WEBHOOK, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ awb: String(awb).trim() })
+        });
+        if (!response.ok) return null;
+        const data = await response.json();
+        const order = Array.isArray(data) ? data[0] : data;
+        return order && order.id ? order : null;
+    } catch (err) {
+        console.error('[Retur] lookup comandă după AWB eșuat:', err);
+        return null;
+    }
 }
 
 /** Extrage AWB-urile dintr-un obiect RMA (rma.awbs este listă de obiecte, nu string-uri) */

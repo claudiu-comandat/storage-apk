@@ -39,10 +39,11 @@ const processHardwareScan = async (code) => {
 
     const handlers = {
         "page-picking": () => window.handlePickingScan?.(cleanCode),
-        "page-add-product": () => isProduct ? window.quickAddProductBySku?.(cleanCode) : 
+        "page-add-product": () => isProduct ? window.quickAddProductBySku?.(cleanCode) :
             (isLoc && window.scannedProductList?.length ? window.handleLocationScan?.(cleanCode) : window.showToast?.("Adaugă produse în listă înainte de a scana locația.", true)),
-        "page-delete-product": () => isProduct ? window.quickDeleteProductBySku?.(cleanCode) : 
-            (isLoc && window.deleteProductList?.length ? window.handleDeleteLocationScan?.(cleanCode) : window.showToast?.("Scanează produse înainte de a scana locația.", true))
+        "page-delete-product": () => isProduct ? window.quickDeleteProductBySku?.(cleanCode) :
+            (isLoc && window.deleteProductList?.length ? window.handleDeleteLocationScan?.(cleanCode) : window.showToast?.("Scanează produse înainte de a scana locația.", true)),
+        "page-retur": () => window.handleReturAwbScan?.(cleanCode)
     };
 
     handlers[pageId] ? await handlers[pageId]() : (isProduct && search());
