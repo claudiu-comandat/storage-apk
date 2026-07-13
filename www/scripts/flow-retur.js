@@ -53,21 +53,41 @@ async function openReturPage() {
             fetchTrendyolReasons()
         ]);
 
+        const failed = [];
         if (ordersResult.status === 'rejected') {
             console.error('Eroare preîncărcare index comenzi:', ordersResult.reason);
+            failed.push('comenzi');
         }
         if (rmaResult.status === 'rejected') {
             console.error('Eroare preîncărcare RMA eMAG:', rmaResult.reason);
+            failed.push('RMA eMAG');
         }
         if (trendyolClaimsResult.status === 'rejected') {
             console.error('Eroare preîncărcare claims Trendyol:', trendyolClaimsResult.reason);
+            failed.push('claims Trendyol');
         }
         if (trendyolReasonsResult.status === 'rejected') {
             console.error('Eroare preîncărcare motive Trendyol:', trendyolReasonsResult.reason);
+            failed.push('motive Trendyol');
+        }
+
+        // Dacă toate sursele de căutare (comenzi + RMA + claims) au picat, nu avem pe ce căuta AWB-ul.
+        const nothingToSearch = ordersResult.status === 'rejected'
+            && rmaResult.status === 'rejected'
+            && trendyolClaimsResult.status === 'rejected';
+
+        if (nothingToSearch) {
+            setReturState('error');
+            showToast('Eroare la preîncărcarea datelor. Reîncearcă.', true);
+            return;
         }
 
         setReturState('ready');
-        showToast('Date preîncărcate. Scanează AWB-ul.');
+        if (failed.length > 0) {
+            showToast(`Date parțial încărcate — lipsesc: ${failed.join(', ')}.`, true);
+        } else {
+            showToast('Date preîncărcate. Scanează AWB-ul.');
+        }
     } catch (err) {
         console.error('Eroare fatală la deschiderea paginii retur:', err);
         showToast('Eroare la pregătirea datelor.', true);
@@ -127,7 +147,8 @@ function handleReturAwbScan(awb) {
     // 1. Caută în lista RMA (status: Approved=3, Received=6, sau alte statusuri relevante)
     const RELEVANT_RMA_STATUSES = [3, 6]; // 3=Approved/Preluate, 6=Received/Receptionate
     const rmaMatch = returRmaList.find(rma => {
-        if (!RELEVANT_RMA_STATUSES.includes(rma.request_status)) return false;
+        // Number(): eMAG poate întoarce request_status ca string, comparăm întotdeauna numeric.
+        if (!RELEVANT_RMA_STATUSES.includes(Number(rma.request_status))) return false;
         const awbNumbers = extractRmaAwbs(rma);
         return awbNumbers.some(a => a === cleanAwb);
     });
@@ -201,7 +222,8 @@ function showRmaPanel(rma) {
     panel.innerHTML = '';
 
     const statusNames = { 1: 'Incomplet', 2: 'Nou', 3: 'Aprobat (Preluat)', 4: 'Refuzat', 5: 'Anulat', 6: 'Recepționat', 7: 'Finalizat' };
-    const statusName = statusNames[rma.request_status] || `Status ${rma.request_status}`;
+    // Number(): aceeași grijă ca la matching — cheile obiectului sunt numerice.
+    const statusName = statusNames[Number(rma.request_status)] || `Status ${escapeHtml(rma.request_status)}`;
 
     const existingTax = parseFloat(rma.return_tax_value) || 0;
     const existingRetained = parseFloat(rma.retained_amount) || 0;
@@ -214,10 +236,10 @@ function showRmaPanel(rma) {
                 <span class="retur-badge">${statusName}</span>
             </div>
             <div class="retur-info-grid">
-                <div class="retur-info-item"><label>ID eMAG</label><span>${rma.emag_id || '-'}</span></div>
-                <div class="retur-info-item"><label>ID Comandă</label><span>${rma.order_id || '-'}</span></div>
-                <div class="retur-info-item"><label>Data</label><span>${rma.date ? rma.date.substring(0, 10) : '-'}</span></div>
-                <div class="retur-info-item"><label>Motiv</label><span>${rma.return_reason || '-'}</span></div>
+                <div class="retur-info-item"><label>ID eMAG</label><span>${escapeHtml(rma.emag_id || '-')}</span></div>
+                <div class="retur-info-item"><label>ID Comandă</label><span>${escapeHtml(rma.order_id || '-')}</span></div>
+                <div class="retur-info-item"><label>Data</label><span>${rma.date ? escapeHtml(rma.date.substring(0, 10)) : '-'}</span></div>
+                <div class="retur-info-item"><label>Motiv</label><span>${escapeHtml(rma.return_reason || '-')}</span></div>
             </div>
 
             ${existingTax > 0 || existingRetained > 0 ? `
@@ -337,6 +359,9 @@ async function submitRma(event, action) {
         let result = null;
         try { result = await response.json(); } catch (e) { /* body opțional */ }
 
+        // Scoatem RMA-ul din cache ca să nu poată fi rescanat/retrimis accidental înainte de refresh.
+        returRmaList = returRmaList.filter(r => r.emag_id !== returCurrentRma.emag_id);
+
         const actionLabel = action === 'finalizat' ? 'Finalizat' : 'Refuzat';
         // Dacă storno-ul a fost sărit (comanda OpenSales nu a putut fi legată), NU pretinde succes total.
         if (action === 'finalizat' && result && result.skipped) {
@@ -364,20 +389,21 @@ function showOrderPanel(order) {
 
     const items = order.allItems || (order.firstItem ? [order.firstItem] : []);
     const products = items.map(p =>
-        `<li><span class="retur-sku">${p.sku || '-'}</span> — ${p.name || '-'} × <strong>${p.quantity}</strong></li>`
+        `<li><span class="retur-sku">${escapeHtml(p.sku || '-')}</span> — ${escapeHtml(p.name || '-')} × <strong>${escapeHtml(p.quantity)}</strong></li>`
     ).join('');
+    const orderLabel = escapeHtml(order.externalId || order.id || '-');
 
     panel.innerHTML = `
         <div class="retur-card">
             <div class="retur-card-header retur-card-header--order">
                 <span class="material-icons-outlined">inventory_2</span>
                 <h3>Comandă</h3>
-                <span class="retur-badge retur-badge--order">${order.status || '-'}</span>
+                <span class="retur-badge retur-badge--order">${escapeHtml(order.status || '-')}</span>
             </div>
             <div class="retur-info-grid">
-                <div class="retur-info-item"><label>ID Comandă</label><span class="retur-mono">${order.externalId || order.id || '-'}</span></div>
-                <div class="retur-info-item"><label>Client</label><span>${order.customer?.name || '-'}</span></div>
-                <div class="retur-info-item"><label>Marketplace</label><span>${order.marketplace || '-'}</span></div>
+                <div class="retur-info-item"><label>ID Comandă</label><span class="retur-mono">${orderLabel}</span></div>
+                <div class="retur-info-item"><label>Client</label><span>${escapeHtml(order.customer?.name || '-')}</span></div>
+                <div class="retur-info-item"><label>Marketplace</label><span>${escapeHtml(order.marketplace || '-')}</span></div>
             </div>
             <div class="retur-products">
                 <label>Produse:</label>
@@ -402,10 +428,24 @@ function showOrderPanel(order) {
                 </div>
             </div>
 
-            <div class="retur-actions">
-                <button onclick="confirmNeridicat(event)" class="retur-btn retur-btn--neridicat">
+            <div id="retur-neridicat-initial" class="retur-actions">
+                <button onclick="requestNeredicatConfirm()" class="retur-btn retur-btn--neridicat">
                     <span class="material-icons-outlined">do_not_disturb_on</span> Confirmă Produs Neridicat
                 </button>
+            </div>
+            <div id="retur-neridicat-confirm" class="retur-confirm-box hidden">
+                <p class="retur-confirm-text">
+                    Confirmi că <strong>#${orderLabel}</strong> are produse neridicate?<br>
+                    <small>Se va genera Factură Storno.</small>
+                </p>
+                <div class="retur-confirm-actions">
+                    <button onclick="confirmNeridicat(event)" class="retur-btn retur-btn--finalizat">
+                        <span class="material-icons-outlined">check</span> Da, confirmă
+                    </button>
+                    <button onclick="cancelNeredicatConfirm()" class="retur-btn retur-btn--refuzat">
+                        <span class="material-icons-outlined">close</span> Anulează
+                    </button>
+                </div>
             </div>
         </div>
     `;
@@ -417,6 +457,17 @@ function showOrderPanel(order) {
 // ============================================================
 // CONFIRMARE NERIDICAT
 // ============================================================
+
+// Dialog nativ confirm() se comportă inconsistent în WebView Capacitor — folosim panel inline.
+function requestNeredicatConfirm() {
+    document.getElementById('retur-neridicat-initial')?.classList.add('hidden');
+    document.getElementById('retur-neridicat-confirm')?.classList.remove('hidden');
+}
+
+function cancelNeredicatConfirm() {
+    document.getElementById('retur-neridicat-confirm')?.classList.add('hidden');
+    document.getElementById('retur-neridicat-initial')?.classList.remove('hidden');
+}
 
 async function confirmNeridicat(event) {
     if (!returCurrentOrder) return;
@@ -434,11 +485,9 @@ async function confirmNeridicat(event) {
         if (obsRequired) obsRequired.classList.remove('hidden');
         document.getElementById('retur-observatii-input').focus();
         showToast('Observațiile sunt obligatorii când există taxe sau sume reținute!', true);
+        cancelNeredicatConfirm();
         return;
     }
-
-    const confirmed = confirm(`Confirmi că această comandă (#${returCurrentOrder.externalId || returCurrentOrder.id}) are produse neridicate?\nSe va genera Factură Storno.`);
-    if (!confirmed) return;
 
     // Prevenire dublu click
     const btn = event?.currentTarget;
@@ -500,7 +549,7 @@ function showReturNotFound(awb) {
         <div class="retur-card retur-card--notfound">
             <span class="material-icons-outlined" style="font-size:48px; color:#ef4444;">search_off</span>
             <h3>AWB Negăsit</h3>
-            <p>AWB-ul <strong class="retur-mono">${awb}</strong> nu a fost găsit în nicio cerere de retur sau comandă activă.</p>
+            <p>AWB-ul <strong class="retur-mono">${escapeHtml(awb)}</strong> nu a fost găsit în nicio cerere de retur sau comandă activă.</p>
             <button onclick="startReturScan()" class="retur-btn retur-btn--scan">
                 <span class="material-icons-outlined">qr_code_scanner</span> Scanează din nou
             </button>
@@ -551,11 +600,11 @@ function showTrendyolClaimPanel(claim) {
     const date = claim.claimDate ? new Date(claim.claimDate).toLocaleDateString('ro-RO') : '-';
 
     const products = (claim.items || []).map(p =>
-        `<li><span class="retur-sku">${p.barcode || '-'}</span> — ${p.productName || '-'} × <strong>${p.quantity || 1}</strong></li>`
+        `<li><span class="retur-sku">${escapeHtml(p.barcode || '-')}</span> — ${escapeHtml(p.productName || '-')} × <strong>${escapeHtml(p.quantity || 1)}</strong></li>`
     ).join('') || '<li>Niciun produs</li>';
 
     const reasonOptions = returTrendyolReasons.map(r =>
-        `<option value="${r.id}">${r.name}</option>`
+        `<option value="${escapeHtml(r.id)}">${escapeHtml(r.name)}</option>`
     ).join('');
 
     panel.innerHTML = `
@@ -566,9 +615,9 @@ function showTrendyolClaimPanel(claim) {
                 <span class="retur-badge retur-badge--trendyol">În Așteptare</span>
             </div>
             <div class="retur-info-grid">
-                <div class="retur-info-item"><label>Nr. Comandă</label><span class="retur-mono">${claim.orderNumber || '-'}</span></div>
-                <div class="retur-info-item"><label>Data</label><span>${date}</span></div>
-                <div class="retur-info-item retur-info-item--full"><label>Motiv Client</label><span>${claim.customerClaimItemReason || '-'}</span></div>
+                <div class="retur-info-item"><label>Nr. Comandă</label><span class="retur-mono">${escapeHtml(claim.orderNumber || '-')}</span></div>
+                <div class="retur-info-item"><label>Data</label><span>${escapeHtml(date)}</span></div>
+                <div class="retur-info-item retur-info-item--full"><label>Motiv Client</label><span>${escapeHtml(claim.customerClaimItemReason || '-')}</span></div>
             </div>
             <div class="retur-products">
                 <label>Produse:</label>
@@ -737,6 +786,8 @@ window.openReturPage = openReturPage;
 window.startReturScan = startReturScan;
 window.handleReturAwbScan = handleReturAwbScan;
 window.submitRma = submitRma;
+window.requestNeredicatConfirm = requestNeredicatConfirm;
+window.cancelNeredicatConfirm = cancelNeredicatConfirm;
 window.confirmNeridicat = confirmNeridicat;
 window.updateReturTotal = updateReturTotal;
 window.approveTrendyolClaim = approveTrendyolClaim;

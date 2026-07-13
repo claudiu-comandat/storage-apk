@@ -121,6 +121,16 @@ function showLoading(isLoading) {
     document.getElementById('loading-overlay').style.display = isLoading ? 'flex' : 'none';
 }
 
+/** Scapă text pentru inserare sigură în innerHTML (date din marketplace-uri/scanări, nu de încredere). */
+function escapeHtml(str) {
+    return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#x27;');
+}
+
 // ExpuN funcțiile necesare global
 window.showPage = showPage;
 window.setupPickingPageFooter = setupPickingPageFooter;
@@ -129,3 +139,4 @@ window.saveToLocalStorage = saveToLocalStorage;
 window.formatLocation = formatLocation;
 window.showToast = showToast;
 window.showLoading = showLoading;
+window.escapeHtml = escapeHtml;

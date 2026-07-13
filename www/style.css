@@ -490,6 +490,28 @@ body {
 }
 .retur-btn--refuzat:hover { background: #b91c1c; }
 
+.retur-confirm-box {
+    margin-top: 1rem;
+    padding: 1rem;
+    border-radius: 0.75rem;
+    background: rgba(239,68,68,0.06);
+    border: 1px solid rgba(239,68,68,0.25);
+}
+.dark .retur-confirm-box {
+    background: rgba(239,68,68,0.12);
+    border-color: rgba(239,68,68,0.35);
+}
+.retur-confirm-text {
+    font-size: 0.875rem;
+    color: #374151;
+    text-align: center;
+    margin-bottom: 0.75rem;
+    line-height: 1.5;
+}
+.dark .retur-confirm-text { color: #d1d5db; }
+.retur-confirm-actions { display: flex; gap: 0.5rem; }
+.retur-confirm-actions .retur-btn { flex: 1; font-size: 0.875rem; padding: 0.65rem 0.5rem; }
+
 .retur-btn--neridicat {
     grid-column: 1 / -1;
     background: #7c3aed;
