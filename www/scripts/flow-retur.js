@@ -85,7 +85,8 @@ async function fetchReturOrders() {
     const response = await fetch(RETUR_FETCH_ORDERS_WEBHOOK, { method: 'POST' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
-    returOrders = Array.isArray(data) ? data : [];
+    // Acceptă fie un array direct, fie { orders: [...] } (depinde de nodul Respond din n8n).
+    returOrders = Array.isArray(data) ? data : (Array.isArray(data?.orders) ? data.orders : []);
     console.log(`[Retur] ${returOrders.length} comenzi (index slab) preîncărcate în cache.`);
 }
 
