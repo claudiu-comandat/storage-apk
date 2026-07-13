@@ -40,7 +40,16 @@ async function startPickingProcess() {
     document.getElementById('picking-success-overlay').classList.add('hidden');
     document.getElementById('picking-item-success-overlay').classList.add('hidden');
     document.getElementById('floating-order-bubble').classList.remove('visible');
-    
+
+    // Pregătirea comenzilor cere imprimanta Bluetooth conectată — altfel produsele
+    // s-ar scădea din stoc înainte ca AWB-ul să poată fi generat/printat la final.
+    const btOverlay = document.getElementById('picking-bt-required-overlay');
+    if (!(await window.BluetoothPrinter.isConnected())) {
+        btOverlay.classList.remove('hidden');
+        return;
+    }
+    btOverlay.classList.add('hidden');
+
     // Inițializează
     window.processedOrderIds = new Set(); 
 
@@ -344,7 +353,7 @@ function startPickingScan() {
 
 async function handlePickingScan(scannedCode) {
     if (currentRouteIndex >= pickingRoutes.length) return;
-    
+
     const currentOrder = pickingRoutes[currentRouteIndex];
     const stop = currentOrder.stops[currentStopIndex];
 

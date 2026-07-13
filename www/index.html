@@ -377,6 +377,22 @@
                     Înapoi la Dashboard
                 </button>
             </div>
+
+            <div id="picking-bt-required-overlay"
+                class="hidden absolute inset-0 bg-background-dark z-[70] flex flex-col items-center justify-center p-8 text-center">
+                <span class="material-symbols-outlined text-8xl text-red-500 mb-4">bluetooth_disabled</span>
+                <h2 class="text-2xl font-bold text-white mb-2">Imprimantă Bluetooth Neconectată</h2>
+                <p class="text-gray-400 mb-8 max-w-xs">Conectează-te la imprimanta Bluetooth înainte de a pregăti
+                    comenzile, altfel AWB-ul nu poate fi printat.</p>
+                <button onclick="openSettingsModal(); openBluetoothSettings();"
+                    class="bg-primary text-white font-bold py-4 px-8 rounded-2xl w-full max-w-xs shadow-lg flex items-center justify-center gap-2 mb-3">
+                    <span class="material-symbols-outlined">bluetooth_searching</span>
+                    Conectează Bluetooth
+                </button>
+                <button onclick="showPage('page-dashboard')" class="text-gray-400 py-2">
+                    Înapoi la Dashboard
+                </button>
+            </div>
         </div>
 
         <div id="page-delete-product" class="page p-6 relative">

@@ -299,6 +299,10 @@ window.connectToBtDevice = async function (mac, btn) {
             btn.className = 'text-xs font-bold bg-green-600 text-white px-3 py-2 rounded-lg';
         }
         if (window.showToast) showToast('Conectat la imprimantă ✓');
+        // Deblochează ecranul de pregătire comenzi dacă tocmai aștepta conexiunea.
+        if (document.getElementById('page-picking')?.classList.contains('active') && window.startPickingProcess) {
+            window.startPickingProcess();
+        }
     } catch (e) {
         if (btn) {
             btn.textContent = 'Reîncearcă';
