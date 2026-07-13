@@ -85,8 +85,15 @@ async function fetchReturOrders() {
     const response = await fetch(RETUR_FETCH_ORDERS_WEBHOOK, { method: 'POST' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data = await response.json();
-    // Acceptă fie un array direct, fie { orders: [...] } (depinde de nodul Respond din n8n).
-    returOrders = Array.isArray(data) ? data : (Array.isArray(data?.orders) ? data.orders : []);
+    // Acceptă orice formă rezonabilă din n8n (în funcție de setarea nodului Respond):
+    // array de comenzi, { orders: [...] }, sau [{ orders: [...] }].
+    let arr = [];
+    if (Array.isArray(data)) {
+        arr = (data.length === 1 && Array.isArray(data[0]?.orders)) ? data[0].orders : data;
+    } else if (Array.isArray(data?.orders)) {
+        arr = data.orders;
+    }
+    returOrders = arr;
     console.log(`[Retur] ${returOrders.length} comenzi (index slab) preîncărcate în cache.`);
 }
 
