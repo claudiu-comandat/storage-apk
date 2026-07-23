@@ -508,6 +508,15 @@ async function confirmNeridicat(event) {
 
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
+        // Backend-ul (n8n) sare peste stornare fără eroare HTTP dacă internal_order_id
+        // lipsește la momentul apelului — fără verificarea asta, toastul de succes minte.
+        const result = await response.json().catch(() => null);
+        if (result && result.skipped) {
+            showToast('Comanda nu a fost stornată — legătura cu comanda OpenSales lipsește. Verifică manual!', true);
+            if (btn) btn.disabled = false;
+            return;
+        }
+
         showToast('Factură Storno generată!');
         showPage('page-dashboard');
     } catch (err) {
