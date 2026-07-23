@@ -1,5 +1,10 @@
 // scripts/flow-picking.js
 
+// ponytail: lacăt anti-dublă-scanare la picking. Cât o comandă se finalizează
+// (sendStorageUpdate + AWB + printare + timer 5s), scanările noi se ignoră —
+// altfel a doua scanare sare peste comanda următoare (AWB dublu + stoc scăzut greșit).
+let isPickingBusy = false;
+
 // --- Notificări Dashboard ---
 
 function setupDashboardNotification() {
@@ -51,7 +56,8 @@ async function startPickingProcess() {
     btOverlay.classList.add('hidden');
 
     // Inițializează
-    window.processedOrderIds = new Set(); 
+    isPickingBusy = false;
+    window.processedOrderIds = new Set();
 
     if (liveOrders.length === 0) {
         finishPicking();
@@ -352,6 +358,7 @@ function startPickingScan() {
 }
 
 async function handlePickingScan(scannedCode) {
+    if (isPickingBusy) return; // o finalizare de comandă e în curs — ignoră scanarea duplicată
     if (currentRouteIndex >= pickingRoutes.length) return;
 
     const currentOrder = pickingRoutes[currentRouteIndex];
@@ -368,8 +375,13 @@ async function handlePickingScan(scannedCode) {
     const scanned = scannedCode.trim().toUpperCase();
 
     if (scanned === expectedSku) {
+        isPickingBusy = true;
         showToast("Cod Corect!", false);
-        await advancePickingStop(); 
+        try {
+            await advancePickingStop();
+        } finally {
+            isPickingBusy = false;
+        }
     } else {
         showWrongProductError();
     }
