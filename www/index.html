@@ -3,7 +3,10 @@
 
 <head>
     <meta charset="utf-8" />
-    <meta content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    <!-- interactive-widget=resizes-content: fără el, tastatura pe Android nu redimensionează
+         corect viewport-ul (100dvh rămâne "înalt" cât era înainte de tastatură), deci
+         #app-container se blochează la scroll pe formulare mai lungi decât ecranul. -->
+    <meta content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content"
         name="viewport" />
     <title>Manager Stocuri</title>
 
