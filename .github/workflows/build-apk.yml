@@ -64,14 +64,36 @@ jobs:
             echo "Platforma Android este prezentă și pare validă."
           fi
 
-      # 8b. Permisiune Android pentru auto-instalare APK (self-update)
-      # android/ e regenerat de la zero mai sus, deci se re-adaugă la fiecare build.
-      - name: Add self-update permission to manifest
+      # 8b. Permisiuni Android necesare aplicației (self-update + Bluetooth Zebra + scanare
+      # cameră QR + locație cerută de BLE scan). android/ e regenerat de la zero mai sus
+      # (npx cap add android nu le include), deci trebuie re-injectate la fiecare build —
+      # altfel manifestul din repo (acum șters, era oricum suprascris) e simplă decorație.
+      - name: Add required permissions to manifest
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
           if ! grep -q "REQUEST_INSTALL_PACKAGES" "$MANIFEST"; then
-            sed -i '/<manifest /a\    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />' "$MANIFEST"
+            sed -i '/<manifest /a\
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />\
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />\
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />\
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />\
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />\
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\
+    <uses-permission android:name="android.permission.CAMERA" />\
+    <uses-feature android:name="android.hardware.bluetooth" android:required="true" />\
+    <uses-feature android:name="android.hardware.camera" android:required="false" />' "$MANIFEST"
           fi
+
+      # 8c. Versionare reală Android — versionCode/versionName rămâneau pe default-ul
+      # Capacitor (1 / "1.0") la fiecare build, identic. Nu cauzează eșecul de instalare
+      # curent (semnătura diferă doar între build-uri de dinainte/după keystore-ul
+      # persistent), dar un downgrade cu versionCode mai mic ar fi respins de Android.
+      - name: Bump Android versionCode/versionName
+        run: |
+          GRADLE="android/app/build.gradle"
+          sed -i "s/versionCode [0-9]\+/versionCode ${{ github.run_number }}/" "$GRADLE"
+          sed -i "s/versionName \"[^\"]*\"/versionName \"1.0.${{ github.run_number }}\"/" "$GRADLE"
 
       # 9. Sync Capacitor
       - name: Capacitor Sync
