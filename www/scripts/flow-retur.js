@@ -410,23 +410,8 @@ function showOrderPanel(order) {
                 <ul class="retur-product-list">${products || '<li>Niciun produs</li>'}</ul>
             </div>
 
-            <div class="retur-form">
-                <div class="retur-form-row">
-                    <label for="retur-taxa-input">Taxă Retur (RON)</label>
-                    <input type="number" id="retur-taxa-input" value="0" min="0" step="0.01" placeholder="0.00" class="retur-input" oninput="updateReturTotal()">
-                </div>
-                <div class="retur-form-row">
-                    <label for="retur-retinuta-input">Sumă Reținută (RON)</label>
-                    <input type="number" id="retur-retinuta-input" value="0" min="0" step="0.01" placeholder="0.00" class="retur-input" oninput="updateReturTotal()">
-                </div>
-                <div id="retur-total-display" class="retur-total-display hidden">
-                    Total Tax Returnare: <strong id="retur-total-value">0 RON</strong>
-                </div>
-                <div class="retur-form-row">
-                    <label for="retur-observatii-input">Observații <span id="retur-obs-required" class="retur-required hidden">*obligatoriu</span></label>
-                    <textarea id="retur-observatii-input" class="retur-textarea" rows="3" placeholder="Adaugă observații..."></textarea>
-                </div>
-            </div>
+            <!-- Fără Taxă retur / Sumă reținută / Observații aici: un produs pur și simplu
+                 neridicat n-are nimic de evaluat — nu s-a inspectat, nu s-a analizat nimic. -->
 
             <div id="retur-neridicat-initial" class="retur-actions">
                 <button onclick="requestNeredicatConfirm()" class="retur-btn retur-btn--neridicat">
@@ -451,7 +436,6 @@ function showOrderPanel(order) {
     `;
 
     panel.classList.remove('hidden');
-    updateReturTotal();
 }
 
 // ============================================================
@@ -476,19 +460,6 @@ async function confirmNeridicat(event) {
         return;
     }
 
-    const taxa = parseFloat(document.getElementById('retur-taxa-input')?.value) || 0;
-    const retinuta = parseFloat(document.getElementById('retur-retinuta-input')?.value) || 0;
-    const observatii = document.getElementById('retur-observatii-input')?.value?.trim() || '';
-
-    if ((taxa > 0 || retinuta > 0) && !observatii) {
-        const obsRequired = document.getElementById('retur-obs-required');
-        if (obsRequired) obsRequired.classList.remove('hidden');
-        document.getElementById('retur-observatii-input').focus();
-        showToast('Observațiile sunt obligatorii când există taxe sau sume reținute!', true);
-        cancelNeredicatConfirm();
-        return;
-    }
-
     // Prevenire dublu click
     const btn = event?.currentTarget;
     if (btn) btn.disabled = true;
@@ -500,9 +471,6 @@ async function confirmNeridicat(event) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 internal_order_id: returCurrentOrder.id,
-                return_tax_value: taxa > 0 ? taxa : undefined,
-                retained_amount: retinuta > 0 ? retinuta : undefined,
-                observations: observatii || undefined,
             })
         });
 
