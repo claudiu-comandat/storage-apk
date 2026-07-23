@@ -39,6 +39,8 @@ function openSettingsModal() {
     if (modal) {
         modal.classList.remove('hidden');
         window.renderLogsPanel();
+        const versionEl = document.getElementById('settings-app-version');
+        if (versionEl) versionEl.textContent = window.APP_VERSION_CODE || '?';
     }
 }
 

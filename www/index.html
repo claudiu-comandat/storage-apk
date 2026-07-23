@@ -567,6 +567,15 @@
                 </button>
             </div>
 
+            <!-- Verificare actualizare — bypass throttle-ul de 30 min din updater.js -->
+            <div class="mb-6">
+                <button onclick="window.checkForAppUpdate(true)"
+                    class="w-full flex items-center justify-center gap-2 py-3 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl text-sm font-semibold dark:text-white hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                    <span class="material-icons-outlined text-base">system_update</span>
+                    Verifică actualizări (v<span id="settings-app-version"></span>)
+                </button>
+            </div>
+
             <!-- Secțiunea Test Print -->
             <div class="mb-6 space-y-3">
                 <button onclick="testPrint()"

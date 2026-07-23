@@ -20,7 +20,12 @@ async function checkForAppUpdate(force = false) {
 
         const remoteVersion = parseInt(String(release.tag_name || '').replace(/\D/g, ''), 10);
         const localVersion = window.APP_VERSION_CODE || 0;
-        if (!remoteVersion || remoteVersion <= localVersion) return;
+        if (!remoteVersion || remoteVersion <= localVersion) {
+            if (force && typeof showToast === 'function') {
+                showToast(`Ești la zi (v${localVersion}).`);
+            }
+            return;
+        }
 
         const apkAsset = (release.assets || []).find(a => a.name.endsWith('.apk'));
         if (!apkAsset) return;
@@ -28,6 +33,9 @@ async function checkForAppUpdate(force = false) {
         showUpdateBanner(remoteVersion, apkAsset.browser_download_url);
     } catch (e) {
         console.warn('[Updater] Verificare update eșuată:', e);
+        if (force && typeof showToast === 'function') {
+            showToast('Verificarea actualizării a eșuat: ' + e.message, true);
+        }
     }
 }
 
